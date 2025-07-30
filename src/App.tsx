@@ -123,6 +123,10 @@ function ViralVideoScriptGenerator() {
         setStatusMessage('Uploading video... this may take a moment.');
 
         const uploadedFile = await ai.files.upload({file: videoFile});
+        
+        if (!uploadedFile.name) {
+          throw new Error("Uploaded file is missing a name. Cannot process.");
+        }
 
         setStatusMessage(
           'Processing video... this can take a few minutes for longer videos.',
