@@ -17,7 +17,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export const timeToSecs = (timecode) => {
+export const timeToSecs = (timecode: string) => {
   const split = timecode.split(':').map(parseFloat);
 
   return split.length === 2

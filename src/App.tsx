@@ -164,7 +164,7 @@ function ViralVideoScriptGenerator() {
       });
 
       // 6. Display the generated script
-      setGeneratedScript(response.text);
+      setGeneratedScript(response.text ?? 'No response text received.');
     } catch (err: any) {
       console.error(err);
       setError(
