@@ -1,0 +1,6 @@
+{
+  "name": "Viral Video Script Generator",
+  "description": "Generate a viral video script on any topic, inspired by the style and structure of an existing video.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}
