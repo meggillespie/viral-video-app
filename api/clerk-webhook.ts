@@ -2,16 +2,23 @@
 
 import { Webhook } from 'svix';
 import { createClient } from '@supabase/supabase-js';
-import type { VercelRequest, VercelResponse } from '@vercel/node'; // Import Vercel specific types
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+
+// This helper function reads the raw request body from the stream
+async function buffer(readable: any) {
+  const chunks = [];
+  for await (const chunk of readable) {
+    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+  }
+  return Buffer.concat(chunks);
+}
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // We only care about POST requests for this webhook
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return res.status(405).end('Method Not Allowed');
   }
 
-  // These secret keys will be stored as Environment Variables on Vercel.
   const CLERK_WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
   const SUPABASE_URL = process.env.SUPABASE_URL;
   const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
@@ -21,18 +28,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: 'Server configuration error.' });
   }
 
+  const svix_id = req.headers['svix-id'] as string;
+  const svix_timestamp = req.headers['svix-timestamp'] as string;
+  const svix_signature = req.headers['svix-signature'] as string;
+
+  if (!svix_id || !svix_timestamp || !svix_signature) {
+    return res.status(400).json({ error: 'Missing Svix headers' });
+  }
+
   const wh = new Webhook(CLERK_WEBHOOK_SECRET);
-
+  
   try {
-    const payload: any = wh.verify(req.body, req.headers as Record<string, string>);
+    const body = await buffer(req); // Use our helper to get the raw body
+    const payload: any = wh.verify(body.toString('utf8'), {
+        "svix-id": svix_id,
+        "svix-timestamp": svix_timestamp,
+        "svix-signature": svix_signature,
+    });
 
-    // We only care about the 'user.created' event type
     if (payload.type === 'user.created') {
       const { id, email_addresses } = payload.data;
       const email = email_addresses[0]?.email_address;
       
       if (!id || !email) {
-        return res.status(400).json({ error: 'Missing user ID or email in webhook payload.' });
+        return res.status(400).json({ error: 'Missing user ID or email.' });
       }
 
       const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
@@ -43,7 +62,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (error) {
         console.error('Supabase insert error:', error);
-        return res.status(500).json({ error: 'Failed to create user profile in database.' });
+        return res.status(500).json({ error: 'Failed to create user profile.' });
       }
 
       console.log(`Successfully created profile for user ${id}`);
@@ -52,7 +71,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return res.status(200).json({ message: 'Webhook received.' });
 
-  } catch (err: any) { // Type the error as 'any'
+  } catch (err: any) {
     console.error('Webhook verification error:', err.message);
     return res.status(400).json({ error: `Webhook Error: ${err.message}` });
   }
