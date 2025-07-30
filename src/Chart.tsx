@@ -21,7 +21,7 @@ import {max, min} from 'd3-array';
 import {scaleBand, scaleLinear} from 'd3-scale';
 import {line} from 'd3-shape';
 import {useEffect, useRef, useState} from 'react';
-import {timeToSecs} from './utils';
+import {timeToSecs} from './utils.ts';
 
 interface ChartDataPoint {
   time: string;
@@ -43,10 +43,10 @@ export default function Chart({data, yLabel, jumpToTimecode}: ChartProps) {
   const yMax = height - margin;
   const xScale = scaleBand()
     .range([margin + 10, xMax])
-    .domain(data.map((d) => d.time))
+    .domain(data.map((d: any) => d.time))
     .padding(0.2);
 
-  const vals = data.map((d) => d.value);
+  const vals = data.map((d: any) => d.value);
   const yScale = scaleLinear()
     .domain([min(vals) ?? 0, max(vals) ?? 10])
     .nice()
@@ -55,8 +55,8 @@ export default function Chart({data, yLabel, jumpToTimecode}: ChartProps) {
   const yTicks = yScale.ticks(Math.floor(height / 70));
 
   const lineGen = line<ChartDataPoint>()
-    .x((d) => xScale(d.time)!)
-    .y((d) => yScale(d.value));
+    .x((d: any) => xScale(d.time)!)
+    .y((d: any) => yScale(d.value));
 
   useEffect(() => {
     const setSize = () => {
@@ -74,7 +74,7 @@ export default function Chart({data, yLabel, jumpToTimecode}: ChartProps) {
   return (
     <svg className="lineChart" ref={chartRef}>
       <g className="axisLabels" transform={`translate(0 ${0})`}>
-        {yTicks.map((tick) => {
+        {yTicks.map((tick: any) => {
           const y = yScale(tick);
 
           return (
@@ -90,7 +90,8 @@ export default function Chart({data, yLabel, jumpToTimecode}: ChartProps) {
       <g
         className="axisLabels timeLabels"
         transform={`translate(0 ${yMax + 40})`}>
-        {data.map(({time}, i) => {
+        {/* FIX #1 WAS HERE: Correctly destructure 'time' */}
+        {data.map(({ time }, i) => {
           return (
             <text
               key={i}
@@ -108,7 +109,8 @@ export default function Chart({data, yLabel, jumpToTimecode}: ChartProps) {
       </g>
 
       <g>
-        {data.map(({time, value}, i) => {
+        {/* FIX #2 WAS HERE: Correctly destructure 'time' and 'value' */}
+        {data.map(({ time, value }, i) => {
           return (
             <g key={i} className="dataPoint">
               <circle cx={xScale(time)} cy={yScale(value)} r={4} />

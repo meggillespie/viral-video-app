@@ -140,10 +140,14 @@ function ViralVideoScriptGenerator() {
           throw new Error('Video processing failed. Please try another video.');
         }
 
+        if (!file.mimeType || !file.uri) {
+          throw new Error("Uploaded file is missing required metadata (MIME type or URI).");
+        }
+
         videoPart = {
           fileData: {
-            mimeType: file.mimeType as string,
-            fileUri: file.uri as string,
+            mimeType: file.mimeType, // No 'as string' needed now
+            fileUri: file.uri,
           },
         };
       } else {

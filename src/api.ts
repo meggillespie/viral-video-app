@@ -46,7 +46,6 @@ async function uploadFile(file: globalThis.File) {
   console.log('Uploading...');
   const uploadedFile = await ai.files.upload({
     file,
-    displayName: file.name,
   });
   console.log('Uploaded.');
   console.log('Getting...');
