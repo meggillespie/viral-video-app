@@ -122,8 +122,7 @@ function ViralVideoScriptGenerator() {
         // Upload the file first to get a URI
         setStatusMessage('Uploading video... this may take a moment.');
 
-        const uploadedFileResponse = await ai.files.upload({file: videoFile});
-        const uploadedFile = uploadedFileResponse.file; // The actual file object is nested here
+        const uploadedFile = await ai.files.upload({file: videoFile});
 
         // Add a definitive check for the file and its name right after upload
         if (!uploadedFile || !uploadedFile.name) {
