@@ -122,22 +122,22 @@ function ViralVideoScriptGenerator() {
         // Upload the file first to get a URI
         setStatusMessage('Uploading video... this may take a moment.');
 
-        const uploadedFile = await ai.files.upload({file: videoFile});
-        
-        if (!uploadedFile.name) {
-          throw new Error("Uploaded file is missing a name. Cannot process.");
+        const uploadedFileResponse = await ai.files.upload({file: videoFile});
+        const uploadedFile = uploadedFileResponse.file; // The actual file object is nested here
+
+        // Add a definitive check for the file and its name right after upload
+        if (!uploadedFile || !uploadedFile.name) {
+          throw new Error("File upload failed or the file is missing a name.");
         }
 
         setStatusMessage(
           'Processing video... this can take a few minutes for longer videos.',
         );
 
-        // Poll for the file status until it's 'ACTIVE'
         let file = await ai.files.get({name: uploadedFile.name});
         while (file.state === 'PROCESSING') {
-          // Wait for 5 seconds before checking again
           await new Promise((resolve) => setTimeout(resolve, 5000));
-          file = await ai.files.get({name: file.name});
+          file = await ai.files.get({name: uploadedFile.name});
         }
 
         if (file.state === 'FAILED') {
