@@ -2,8 +2,7 @@
 
 import {useState, useCallback, DragEvent, useEffect} from 'react';
 import {GoogleGenAI} from '@google/genai';
-// --- useAuth is the new, important import ---
-import { SignedIn, SignedOut, SignInButton, UserButton, useUser, useAuth } from "@clerk/clerk-react"; 
+import { SignedIn, SignedOut, SignInButton, UserButton, useUser, useAuth } from "@clerk/clerk-react";
 import { supabase } from './supabaseClient';
 
 const ai = new GoogleGenAI({apiKey: import.meta.env.VITE_GEMINI_API_KEY});
@@ -11,58 +10,49 @@ const Spinner = () => ( /* ... spinner svg code ... */ );
 
 function ViralVideoScriptGenerator() {
   const { user } = useUser();
-  const { getToken } = useAuth(); // <-- NEW: Get the getToken function from Clerk
+  const { getToken } = useAuth(); // We need this to get the auth token
 
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const [isFetchingCredits, setIsFetchingCredits] = useState(true);
 
-  // --- NEW: This useEffect authenticates our Supabase client ---
+  // --- THIS IS THE CORRECTED, COMBINED useEffect HOOK ---
   useEffect(() => {
-    const setSupabaseAuth = async () => {
+    const loadUserData = async () => {
       if (user) {
-        // Get a special token from Clerk that Supabase understands
-        const supabaseToken = await getToken({ template: 'supabase' });
-        if (supabaseToken) {
-          // Set the token for the Supabase client
-          supabase.auth.setSession({ access_token: supabaseToken, refresh_token: '' });
-        }
-      }
-    };
-
-    setSupabaseAuth();
-  }, [user, getToken]);
-
-
-  // This useEffect now depends on the authenticated client to fetch credits
-  useEffect(() => {
-    if (user) {
-      const fetchCredits = async () => {
         setIsFetchingCredits(true);
         try {
+          // 1. Get the authentication token from Clerk
+          const supabaseToken = await getToken({ template: 'supabase' });
+          if (!supabaseToken) {
+            throw new Error("Unable to get Supabase token from Clerk.");
+          }
+          
+          // 2. Set the session for the Supabase client
+          await supabase.auth.setSession({ access_token: supabaseToken, refresh_token: '' });
+
+          // 3. NOW that the client is authenticated, fetch the profile
           const { data, error } = await supabase
             .from('profiles')
             .select('credit_balance')
             .eq('id', user.id)
             .single();
 
-          if (error) {
-            console.error("Error fetching profile:", error);
-            if (error.code === 'PGRST116') { 
-              setCreditBalance(0);
-            }
-          } else if (data) {
+          if (error) throw error;
+          
+          if (data) {
             setCreditBalance(data.credit_balance);
           }
-        } catch (err) {
-          console.error("An unexpected error occurred:", err);
+        } catch (error) {
+          console.error("Error loading user data:", error);
+          setCreditBalance(0); // Default to 0 on error
         } finally {
           setIsFetchingCredits(false);
         }
-      };
+      }
+    };
 
-      fetchCredits();
-    }
-  }, [user]);
+    loadUserData();
+  }, [user, getToken]); // Dependencies remain the same
 
 
   // --- All your existing states and handlers remain the same ---
