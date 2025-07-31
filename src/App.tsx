@@ -1,54 +1,31 @@
 // src/App.tsx
 
 import {useState, useCallback, DragEvent, useEffect} from 'react';
-import {GoogleGenAI} from '@google/genai';
+// import {GoogleGenAI} from '@google/genai'; // Commented out as 'ai' is not used yet
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser, useAuth } from "@clerk/clerk-react";
 import { supabase } from './supabaseClient';
 
-const ai = new GoogleGenAI({apiKey: import.meta.env.VITE_GEMINI_API_KEY});
-const Spinner = () => (
-  <svg
-    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-    xmlns="http://www.w3.org/2000/svg"
-    fill="none"
-    viewBox="0 0 24 24">
-    <circle
-      className="opacity-25"
-      cx="12"
-      cy="12"
-      r="10"
-      stroke="currentColor"
-      strokeWidth="4"></circle>
-    <path
-      className="opacity-75"
-      fill="currentColor"
-      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-  </svg>
-);
+// const ai = new GoogleGenAI({apiKey: import.meta.env.VITE_GEMINI_API_KEY}); // Commented out as 'ai' is not used yet
+// const Spinner = () => ( /* ... spinner svg code ... */ ); // Commented out as 'Spinner' is not used yet
 
 function ViralVideoScriptGenerator() {
   const { user } = useUser();
-  const { getToken } = useAuth(); // We need this to get the auth token
+  const { getToken } = useAuth();
 
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const [isFetchingCredits, setIsFetchingCredits] = useState(true);
 
-  // --- THIS IS THE CORRECTED, COMBINED useEffect HOOK ---
   useEffect(() => {
     const loadUserData = async () => {
       if (user) {
         setIsFetchingCredits(true);
         try {
-          // 1. Get the authentication token from Clerk
           const supabaseToken = await getToken({ template: 'supabase' });
           if (!supabaseToken) {
             throw new Error("Unable to get Supabase token from Clerk.");
           }
-          
-          // 2. Set the session for the Supabase client
           await supabase.auth.setSession({ access_token: supabaseToken, refresh_token: '' });
 
-          // 3. NOW that the client is authenticated, fetch the profile
           const { data, error } = await supabase
             .from('profiles')
             .select('credit_balance')
@@ -62,7 +39,7 @@ function ViralVideoScriptGenerator() {
           }
         } catch (error) {
           console.error("Error loading user data:", error);
-          setCreditBalance(0); // Default to 0 on error
+          setCreditBalance(0);
         } finally {
           setIsFetchingCredits(false);
         }
@@ -70,10 +47,11 @@ function ViralVideoScriptGenerator() {
     };
 
     loadUserData();
-  }, [user, getToken]); // Dependencies remain the same
+  }, [user, getToken]);
 
 
-  // --- All your existing states and handlers remain the same ---
+  // --- All unused states and handlers are temporarily commented out ---
+  /*
   const [topic, setTopic] = useState('');
   const [videoLength, setVideoLength] = useState('Short-form');
   const [youtubeUrl, setYoutubeUrl] = useState('');
@@ -84,11 +62,12 @@ function ViralVideoScriptGenerator() {
   const [isDragging, setIsDragging] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => { /* ... */ };
-  const handleDrop = useCallback((e: DragEvent<HTMLDivElement>) => { /* ... */ }, []);
-  const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => { /* ... */ }, []);
-  const handleDragLeave = useCallback((e: DragEvent<HTMLDivElement>) => { /* ... */ }, []);
-  const handleGenerateScript = async () => { /* ... */ };
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {};
+  const handleDrop = useCallback((e: DragEvent<HTMLDivElement>) => {}, []);
+  const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => {}, []);
+  const handleDragLeave = useCallback((e: DragEvent<HTMLDivElement>) => {}, []);
+  const handleGenerateScript = async () => {};
+  */
 
   return (
     <div className="bg-gray-50 min-h-screen flex items-center justify-center p-4 font-sans">
@@ -109,7 +88,7 @@ function ViralVideoScriptGenerator() {
           </div>
         </div>
         
-        {/* ... The rest of your existing UI ... */}
+        {/* We will add the rest of the UI back here in the next steps */}
         
       </div>
     </div>
