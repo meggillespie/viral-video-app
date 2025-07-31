@@ -1,7 +1,8 @@
 // src/App.tsx
 
 import {useState, useEffect} from 'react';
-import { SignedIn, SignedOut, SignInButton, UserButton, useUser, useAuth } from "@clerk/clerk-react"; 
+// We are adding useSession to be 100% sure the user is loaded
+import { SignedIn, SignedOut, SignInButton, UserButton, useUser, useAuth, useSession } from "@clerk/clerk-react"; 
 import { supabase } from './supabaseClient';
 
 // --- This is the main component that controls the overall page layout and auth state ---
@@ -39,17 +40,18 @@ export default function App() {
 
 // --- This component now handles all of its own data and logic ---
 function ViralVideoScriptGenerator() {
+  const { session } = useSession(); // Get the session object
   const { user } = useUser();
   const { getToken } = useAuth(); 
 
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const [isFetchingCredits, setIsFetchingCredits] = useState(true);
 
-  // This single, robust useEffect handles authentication and data fetching
   useEffect(() => {
     const loadUserData = async () => {
-      // **CRUCIAL FIX**: Wait until we have a user and a user.id before doing anything
-      if (user && user.id) { 
+      // **THE FINAL FIX**: We wait until the session is loaded AND we have a user.id
+      if (session && user && user.id) { 
+        console.log("Attempting to fetch credits for user:", user.id); // Debugging line
         setIsFetchingCredits(true);
         try {
           const supabaseToken = await getToken({ template: 'supabase' });
@@ -60,15 +62,22 @@ function ViralVideoScriptGenerator() {
           const { data, error } = await supabase
             .from('profiles')
             .select('credit_balance')
-            .eq('id', user.id) // Now we know user.id is available
+            .eq('id', user.id)
             .single();
 
-          if (error) throw error;
+          if (error) {
+            // If the error is "0 rows", it means the profile doesn't exist yet.
+            // This can happen if the webhook is slightly delayed. We'll handle it gracefully.
+            if (error.code === 'PGRST116') {
+              console.warn("Profile not found for user, defaulting to 0 credits for now.");
+              setCreditBalance(0);
+            } else {
+              throw error; // Re-throw other errors
+            }
+          }
           
           if (data) {
             setCreditBalance(data.credit_balance);
-          } else {
-            setCreditBalance(0); // If no profile is found, default to 0
           }
         } catch (error) {
           console.error("Error loading user data:", error);
@@ -80,7 +89,7 @@ function ViralVideoScriptGenerator() {
     };
 
     loadUserData();
-  }, [user, getToken]); // This effect re-runs when the user object is ready
+  }, [session, user, getToken]); // We add 'session' as a dependency
 
   return (
     <div className="bg-gray-50 flex items-center justify-center p-4 font-sans">
@@ -92,7 +101,6 @@ function ViralVideoScriptGenerator() {
           <p className="text-gray-500 mt-2">
             Welcome, {user?.firstName || 'Creator'}!
           </p>
-          {/* This display logic is now inside the component that fetches the data */}
           <div className="mt-2 text-sm text-gray-600">
             {isFetchingCredits ? (
               <span>Loading credits...</span>
@@ -102,7 +110,7 @@ function ViralVideoScriptGenerator() {
           </div>
         </div>
         
-        {/* We will add the rest of the UI (inputs, buttons) back here later */}
+        {/* We will add the rest of the UI back here later */}
         
       </div>
     </div>
