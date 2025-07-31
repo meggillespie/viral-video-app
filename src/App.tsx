@@ -62,29 +62,21 @@ function ViralVideoScriptGenerator() {
           await supabase.auth.setSession({ access_token: supabaseToken, refresh_token: '' });
           console.log("Supabase session set successfully.");
 
-          console.log("Attempting to fetch profile from Supabase for user:", user.id);
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('credit_balance')
-            .eq('id', user.id);
+          // --- THIS IS THE NEW DIAGNOSTIC CODE ---
+          console.log("Calling diagnostic function 'get_my_claims'...");
+          const { data, error } = await supabase.rpc('get_my_claims');
 
           if (error) {
-            console.error("Supabase fetch error:", error);
+            console.error("Error calling RPC function:", error);
             throw error;
           }
           
-          console.log("Supabase fetch successful. Data received:", data);
-
-          if (data && data.length > 0) {
-            console.log("Profile found. Setting credit balance to:", data[0].credit_balance);
-            setCreditBalance(data[0].credit_balance);
-          } else {
-            console.warn("No profile found for this user in the database.");
-            setCreditBalance(0);
-          }
+          // This will print the exact contents of the token to your browser console
+          console.log("SUCCESS! Supabase sees the following claims in the token:", data);
+          
         } catch (error) {
           console.error("Full error in catch block:", error);
-          setCreditBalance(0);
+          setCreditBalance(0); // Default to 0 on error
         } finally {
           setIsFetchingCredits(false);
           console.log("--- Finished loadUserData ---");
@@ -111,6 +103,7 @@ function ViralVideoScriptGenerator() {
             {isFetchingCredits ? (
               <span>Loading credits...</span>
             ) : (
+              // This will show 0 for now as we are not fetching the balance
               <span>Credits remaining: <strong>{creditBalance ?? 0}</strong></span>
             )}
           </div>
