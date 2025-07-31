@@ -1,31 +1,35 @@
 // src/App.tsx
 
 import {useState, useEffect} from 'react';
-// import {GoogleGenAI} from '@google/genai'; // Commented out as 'ai' is not used yet
-import { SignedIn, SignedOut, SignInButton, UserButton, useUser, useAuth } from "@clerk/clerk-react";
+// We need to import useAuth to get the token
+import { SignedIn, SignedOut, SignInButton, UserButton, useUser, useAuth } from "@clerk/clerk-react"; 
 import { supabase } from './supabaseClient';
 
-// const ai = new GoogleGenAI({apiKey: import.meta.env.VITE_GEMINI_API_KEY}); // Commented out as 'ai' is not used yet
-// const Spinner = () => ( /* ... spinner svg code ... */ ); // Commented out as 'Spinner' is not used yet
-
-function ViralVideoScriptGenerator() {
-  const { user } = useUser();
-  const { getToken } = useAuth();
+// This is the main component that controls what users see
+export default function App() {
+  // We are moving the logic that needs authentication here
+  const { isSignedIn, user } = useUser();
+  const { getToken } = useAuth(); 
 
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const [isFetchingCredits, setIsFetchingCredits] = useState(true);
 
+  // This single, combined useEffect handles authentication and data fetching
   useEffect(() => {
     const loadUserData = async () => {
-      if (user) {
+      if (isSignedIn) {
         setIsFetchingCredits(true);
         try {
+          // 1. Get the authentication token from Clerk
           const supabaseToken = await getToken({ template: 'supabase' });
           if (!supabaseToken) {
             throw new Error("Unable to get Supabase token from Clerk.");
           }
+          
+          // 2. Set the session for the Supabase client
           await supabase.auth.setSession({ access_token: supabaseToken, refresh_token: '' });
 
+          // 3. NOW that the client is authenticated, fetch the profile
           const { data, error } = await supabase
             .from('profiles')
             .select('credit_balance')
@@ -39,7 +43,7 @@ function ViralVideoScriptGenerator() {
           }
         } catch (error) {
           console.error("Error loading user data:", error);
-          setCreditBalance(0);
+          setCreditBalance(0); // Default to 0 on error
         } finally {
           setIsFetchingCredits(false);
         }
@@ -47,65 +51,26 @@ function ViralVideoScriptGenerator() {
     };
 
     loadUserData();
-  }, [user, getToken]);
+  }, [isSignedIn, user, getToken]);
 
-
-  // --- All unused states and handlers are temporarily commented out ---
-  /*
-  const [topic, setTopic] = useState('');
-  const [videoLength, setVideoLength] = useState('Short-form');
-  const [youtubeUrl, setYoutubeUrl] = useState('');
-  const [videoFile, setVideoFile] = useState<File | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [generatedScript, setGeneratedScript] = useState('');
-  const [error, setError] = useState('');
-  const [isDragging, setIsDragging] = useState(false);
-  const [statusMessage, setStatusMessage] = useState('');
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {};
-  const handleDrop = useCallback((e: DragEvent<HTMLDivElement>) => {}, []);
-  const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => {}, []);
-  const handleDragLeave = useCallback((e: DragEvent<HTMLDivElement>) => {}, []);
-  const handleGenerateScript = async () => {};
-  */
-
-  return (
-    <div className="bg-gray-50 min-h-screen flex items-center justify-center p-4 font-sans">
-      <div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-3xl space-y-6">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-800">
-            Viral Video Script Generator
-          </h1>
-          <p className="text-gray-500 mt-2">
-            Welcome, {user?.firstName || 'Creator'}!
-          </p>
-          <div className="mt-2 text-sm text-gray-600">
-            {isFetchingCredits ? (
-              <span>Loading credits...</span>
-            ) : (
-              <span>Credits remaining: <strong>{creditBalance ?? 0}</strong></span>
-            )}
-          </div>
-        </div>
-        
-        {/* We will add the rest of the UI back here in the next steps */}
-        
-      </div>
-    </div>
-  );
-}
-
-// This component remains unchanged
-export default function App() {
   return (
     <div>
-      <header className="p-4 flex justify-end">
+      <header className="p-4 flex justify-end items-center space-x-4">
         <SignedIn>
+          {/* We will display the credits here in the header */}
+          <div className="text-sm text-gray-600">
+            {isFetchingCredits ? (
+              <span>Loading...</span>
+            ) : (
+              <span>Credits: <strong>{creditBalance ?? 0}</strong></span>
+            )}
+          </div>
           <UserButton afterSignOutUrl="/" />
         </SignedIn>
       </header>
       <main>
         <SignedIn>
+          {/* We pass the credit balance down to the generator component */}
           <ViralVideoScriptGenerator />
         </SignedIn>
         <SignedOut>
@@ -122,4 +87,31 @@ export default function App() {
       </main>
     </div>
   )
+}
+
+
+// --- This component is now just for the UI ---
+function ViralVideoScriptGenerator() {
+  const { user } = useUser();
+
+  // All the state and handlers for the generator UI will live here
+  // For now, it's just the display
+  
+  return (
+    <div className="bg-gray-50 flex items-center justify-center p-4 font-sans">
+      <div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-3xl space-y-6">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold text-gray-800">
+            Viral Video Script Generator
+          </h1>
+          <p className="text-gray-500 mt-2">
+            Welcome, {user?.firstName || 'Creator'}!
+          </p>
+        </div>
+        
+        {/* We will add the rest of the UI (inputs, buttons) back here later */}
+        
+      </div>
+    </div>
+  );
 }
