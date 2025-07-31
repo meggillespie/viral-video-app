@@ -1,6 +1,6 @@
 // src/App.tsx
 
-import {useState, useCallback, DragEvent, useEffect} from 'react';
+import {useState, useEffect} from 'react';
 // import {GoogleGenAI} from '@google/genai'; // Commented out as 'ai' is not used yet
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser, useAuth } from "@clerk/clerk-react";
 import { supabase } from './supabaseClient';
