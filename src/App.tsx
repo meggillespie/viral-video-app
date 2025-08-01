@@ -203,13 +203,14 @@ function VideoDNAGenerator() {
                 {/* Main Form */}
                 <form onSubmit={handleGenerate} className="space-y-6">
                     {/* Step 1: Video Input */}
-                    <div 
-                        onDrop={handleDrop}
-                        onDragOver={handleDragOver}
-                        onDragLeave={handleDragLeave}
-                    >
+                    <div>
                         <label className="text-sm font-medium text-[#8A8A8E] mb-2 block">1. Source Video</label>
-                        <div className={`bg-black/30 border-2 border-dashed ${isDragging ? 'border-[#007BFF]' : 'border-brand-gray/40'} rounded-lg p-6 text-center cursor-pointer hover:border-[#007BFF] transition-colors group relative`}>
+                        <div 
+                            onDrop={handleDrop}
+                            onDragOver={handleDragOver}
+                            onDragLeave={handleDragLeave}
+                            className={`bg-black/30 border-2 border-dashed ${isDragging ? 'border-[#007BFF]' : 'border-brand-gray/40'} rounded-lg p-6 text-center cursor-pointer hover:border-[#007BFF] transition-colors group relative`}
+                        >
                              <input
                                 type="file"
                                 id="videoFile"
@@ -228,7 +229,7 @@ function VideoDNAGenerator() {
                                     setVideoSource(e.target.value);
                                     setVideoFile(null);
                                 }}
-                                className="mt-4 w-full bg-brand-dark/50 border border-[rgba(255,255,255,0.1)] rounded-md px-4 py-2 text-brand-light placeholder-[#8A8A8E] focus:ring-2 focus:ring-[#007BFF] focus:outline-none" 
+                                className="relative z-10 mt-4 w-full bg-brand-dark/50 border border-[rgba(255,255,255,0.1)] rounded-md px-4 py-2 text-brand-light placeholder-[#8A8A8E] focus:ring-2 focus:ring-[#007BFF] focus:outline-none" 
                                 placeholder="https://youtube.com/watch?v=..."
                                 disabled={isLoading}
                             />
