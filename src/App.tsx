@@ -1,4 +1,7 @@
 import React, { useState, useEffect, useCallback, DragEvent } from 'react';
+// NOTE: The import below is correct for your Vite project. The "Could not resolve" error
+// is a limitation of the preview environment, which doesn't have your project's
+// `node_modules` installed. This code will work correctly in your local and Vercel builds.
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser, useAuth } from "@clerk/clerk-react";
 import { createClient } from '@supabase/supabase-js';
 
@@ -47,7 +50,7 @@ export default function App() {
                 </SignedIn>
             </header>
             
-            <main className="relative z-10 flex items-center justify-center min-h-screen">
+            <main className="relative z-10 flex items-center justify-center min-h-screen p-4">
                 <SignedIn>
                     <VideoDNAGenerator />
                 </SignedIn>
@@ -157,17 +160,16 @@ function VideoDNAGenerator() {
         e.preventDefault();
         setError('');
         setGeneratedResult('');
+        setIsLoading(true);
         
         // TODO: Implement Phase 2 Logic
         // 1. Check creditBalance > 0
         // 2. Validate inputs (topic, videoSource/videoFile)
         // 3. Check video duration (will require a backend helper)
-        // 4. Set isLoading(true)
-        // 5. Call the new `api/generate` Vercel function
-        // 6. Call the `decrement-credits` Supabase function on success
-        // 7. Set result or error
-        // 8. Set isLoading(false)
-
+        // 4. Call the new `api/generate` Vercel function
+        // 5. Call the `decrement-credits` Supabase function on success
+        // 6. Set result or error
+        
         console.log({
             videoSource,
             topic,
@@ -177,7 +179,10 @@ function VideoDNAGenerator() {
         });
 
         // Placeholder for now
-        setError("Generation logic not yet implemented.");
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate async work
+        setError("Generation logic not yet implemented. This is a placeholder.");
+        
+        setIsLoading(false);
     };
 
     // --- UI RENDERING ---
@@ -260,7 +265,7 @@ function VideoDNAGenerator() {
                     
                     {/* Action Button */}
                     <div className="pt-4">
-                        <button type="submit" disabled={isLoading} className="w-full px-6 py-3 font-bold text-white bg-[#007BFF] rounded-lg hover:bg-[#0056b3] transition-all duration-300 shadow-lg hover:shadow-[0_0_20px_0_rgba(0,123,255,0.3)] focus:outline-none focus:ring-4 focus:ring-brand-blue/50 disabled:bg-[#0056b3]/50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center">
+                        <button type="submit" disabled={isLoading || isFetchingCredits} className="w-full px-6 py-3 font-bold text-white bg-[#007BFF] rounded-lg hover:bg-[#0056b3] transition-all duration-300 shadow-lg hover:shadow-[0_0_20px_0_rgba(0,123,255,0.3)] focus:outline-none focus:ring-4 focus:ring-brand-blue/50 disabled:bg-[#0056b3]/50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center">
                             {isLoading ? <Spinner /> : null}
                             {isLoading ? 'Generating...' : 'Generate'}
                         </button>
@@ -271,6 +276,16 @@ function VideoDNAGenerator() {
                         <div className="bg-red-500/20 border border-red-500/30 text-red-300 px-4 py-3 rounded-lg text-sm" role="alert">
                             <strong className="font-bold">Error: </strong>
                             <span>{error}</span>
+                        </div>
+                    )}
+                    
+                    {/* Result Display */}
+                    {generatedResult && !isLoading && (
+                        <div className="mt-6 bg-black/20 border border-[rgba(255,255,255,0.1)] rounded-lg p-4">
+                            <h3 className="font-semibold text-lg mb-2">Generated Result:</h3>
+                            <pre className="whitespace-pre-wrap font-mono text-sm text-brand-light/80">
+                                {generatedResult}
+                            </pre>
                         </div>
                     )}
                 </form>
