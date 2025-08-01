@@ -42,52 +42,37 @@ function ViralVideoScriptGenerator() {
   const [creditBalance, setCreditBalance] = useState<number | null>(null);
   const [isFetchingCredits, setIsFetchingCredits] = useState(true);
 
+  // This useEffect now calls our secure Supabase Edge Function
   useEffect(() => {
     const loadUserData = async () => {
-      console.log("--- Starting loadUserData ---");
-      if (user && user.id) { 
-        console.log("User object is ready. User ID:", user.id);
+      // We wait until we have a user and the getToken function is ready
+      if (user && getToken) {
         setIsFetchingCredits(true);
         try {
-          console.log("Attempting to get Supabase token from Clerk...");
-          const supabaseToken = await getToken({ template: 'supabase' });
-          
-          if (!supabaseToken) {
-            console.error("CRITICAL: Failed to get Supabase token from Clerk.");
-            throw new Error("Clerk token not found.");
-          }
-          console.log("Successfully got Supabase token.");
+          // 1. Get the authentication token from Clerk
+          const token = await getToken({ template: 'supabase' });
+          if (!token) throw new Error("Clerk token not found.");
 
-          console.log("Attempting to set Supabase session...");
-          await supabase.auth.setSession({ access_token: supabaseToken, refresh_token: '' });
-          console.log("Supabase session set successfully.");
+          // 2. Call our new 'get-credits' Edge Function with the auth token
+          const { data, error } = await supabase.functions.invoke('get-credits', {
+            headers: { Authorization: `Bearer ${token}` }
+          });
 
-          // --- THIS IS THE NEW DIAGNOSTIC CODE ---
-          console.log("Calling diagnostic function 'get_my_claims'...");
-          const { data, error } = await supabase.rpc('get_my_claims');
+          if (error) throw error;
 
-          if (error) {
-            console.error("Error calling RPC function:", error);
-            throw error;
-          }
-          
-          // This will print the exact contents of the token to your browser console
-          console.log("SUCCESS! Supabase sees the following claims in the token:", data);
-          
+          // 3. Set the credit balance from the function's response
+          setCreditBalance(data.credit_balance);
+
         } catch (error) {
-          console.error("Full error in catch block:", error);
+          console.error("Error loading user data:", error);
           setCreditBalance(0); // Default to 0 on error
         } finally {
           setIsFetchingCredits(false);
-          console.log("--- Finished loadUserData ---");
         }
-      } else {
-        console.log("User object not ready yet, skipping fetch.");
       }
     };
-
     loadUserData();
-  }, [user, getToken]);
+  }, [user, getToken]); // This effect runs when the user logs in
 
   return (
     <div className="bg-gray-50 flex items-center justify-center p-4 font-sans">
@@ -103,11 +88,11 @@ function ViralVideoScriptGenerator() {
             {isFetchingCredits ? (
               <span>Loading credits...</span>
             ) : (
-              // This will show 0 for now as we are not fetching the balance
               <span>Credits remaining: <strong>{creditBalance ?? 0}</strong></span>
             )}
           </div>
         </div>
+        {/* We will add the UI for the generator back in here later */}
       </div>
     </div>
   );
