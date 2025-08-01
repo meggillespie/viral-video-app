@@ -37,36 +37,53 @@ const Logo = () => (
 // --- Main App Component ---
 export default function App() {
     return (
-        <div className="bg-[#111115] min-h-screen font-sans text-[#F5F5F7] relative">
-            {/* Aurora Background Effect */}
-            <div className="absolute top-0 left-0 right-0 bottom-0 overflow-hidden z-0">
-                 <div className="absolute w-[1000px] h-[1000px] bg-[radial-gradient(circle_at_20%_20%,_rgba(0,123,255,0.15),_transparent_30%)] animate-[spin_20s_linear_infinite]"></div>
-                 <div className="absolute w-[1000px] h-[1000px] bg-[radial-gradient(circle_at_80%_70%,_rgba(230,0,255,0.1),_transparent_30%)] animate-[spin_20s_linear_infinite_reverse]"></div>
-            </div>
+        <>
+            {/* Custom styles for segmented controls, mimicking the mockup */}
+            <style>{`
+              .segmented-control input {
+                display: none;
+              }
+              .segmented-control label {
+                transition: all 0.2s ease-in-out;
+              }
+              .segmented-control input:checked + label {
+                background-color: #007BFF;
+                color: #FFFFFF;
+                font-weight: 600;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+              }
+            `}</style>
+            <div className="bg-[#111115] min-h-screen font-sans text-[#F5F5F7] relative">
+                {/* Aurora Background Effect */}
+                <div className="absolute top-0 left-0 right-0 bottom-0 overflow-hidden z-0">
+                     <div className="absolute w-[1000px] h-[1000px] bg-[radial-gradient(circle_at_20%_20%,_rgba(0,123,255,0.15),_transparent_30%)] animate-[spin_20s_linear_infinite]"></div>
+                     <div className="absolute w-[1000px] h-[1000px] bg-[radial-gradient(circle_at_80%_70%,_rgba(230,0,255,0.1),_transparent_30%)] animate-[spin_20s_linear_infinite_reverse]"></div>
+                </div>
 
-            <header className="absolute top-0 right-0 p-6 z-20">
-                <SignedIn>
-                    <UserButton afterSignOutUrl="/" />
-                </SignedIn>
-            </header>
-            
-            <main className="relative z-10 flex items-center justify-center min-h-screen p-4">
-                <SignedIn>
-                    <VideoDNAGenerator />
-                </SignedIn>
-                <SignedOut>
-                    <div className="text-center p-16 bg-[rgba(38,38,42,0.6)] rounded-2xl border border-[rgba(255,255,255,0.1)] shadow-2xl backdrop-blur-xl">
-                        <h2 className="text-3xl font-bold mb-4">Welcome to VideoDNA</h2>
-                        <p className="text-[#8A8A8E] my-4">Please sign in to continue.</p>
-                        <SignInButton mode="modal">
-                            <button className="px-6 py-2 bg-[#007BFF] text-white font-semibold rounded-lg hover:bg-[#0056b3] transition-colors">
-                                Sign In
-                            </button>
-                        </SignInButton>
-                    </div>
-                </SignedOut>
-            </main>
-        </div>
+                <header className="absolute top-0 right-0 p-6 z-20">
+                    <SignedIn>
+                        <UserButton afterSignOutUrl="/" />
+                    </SignedIn>
+                </header>
+                
+                <main className="relative z-10 flex items-center justify-center min-h-screen p-4">
+                    <SignedIn>
+                        <VideoDNAGenerator />
+                    </SignedIn>
+                    <SignedOut>
+                        <div className="text-center p-16 bg-[rgba(38,38,42,0.6)] rounded-2xl border border-[rgba(255,255,255,0.1)] shadow-2xl backdrop-blur-xl">
+                            <h2 className="text-3xl font-bold mb-4">Welcome to VideoDNA</h2>
+                            <p className="text-[#8A8A8E] my-4">Please sign in to continue.</p>
+                            <SignInButton mode="modal">
+                                <button className="px-6 py-2 bg-[#007BFF] text-white font-semibold rounded-lg hover:bg-[#0056b3] transition-colors">
+                                    Sign In
+                                </button>
+                            </SignInButton>
+                        </div>
+                    </SignedOut>
+                </main>
+            </div>
+        </>
     );
 }
 
@@ -163,12 +180,6 @@ function VideoDNAGenerator() {
         setIsLoading(true);
         
         // TODO: Implement Phase 2 Logic
-        // 1. Check creditBalance > 0
-        // 2. Validate inputs (topic, videoSource/videoFile)
-        // 3. Check video duration (will require a backend helper)
-        // 4. Call the new `api/generate` Vercel function
-        // 5. Call the `decrement-credits` Supabase function on success
-        // 6. Set result or error
         
         console.log({
             videoSource,
@@ -216,11 +227,13 @@ function VideoDNAGenerator() {
                                 id="videoFile"
                                 onChange={handleFileChange}
                                 accept="video/*"
-                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-0"
                                 disabled={isLoading}
                             />
-                            <svg className="mx-auto h-12 w-12 text-[#8A8A8E] group-hover:text-[#007BFF] transition-colors" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path></svg>
-                            <p className="mt-2 text-sm text-[#8A8A8E]">Drag & Drop or <span className="font-semibold text-[#007BFF]">paste a link</span></p>
+                            <div className="relative z-10 pointer-events-none">
+                                <svg className="mx-auto h-12 w-12 text-[#8A8A8E] group-hover:text-[#007BFF] transition-colors" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path></svg>
+                                <p className="mt-2 text-sm text-[#8A8A8E]">Drag & Drop or <span className="font-semibold text-[#007BFF]">paste a link</span></p>
+                            </div>
                             <input 
                                 id="video-link" 
                                 type="text" 
@@ -229,7 +242,7 @@ function VideoDNAGenerator() {
                                     setVideoSource(e.target.value);
                                     setVideoFile(null);
                                 }}
-                                className="relative z-10 mt-4 w-full bg-brand-dark/50 border border-[rgba(255,255,255,0.1)] rounded-md px-4 py-2 text-brand-light placeholder-[#8A8A8E] focus:ring-2 focus:ring-[#007BFF] focus:outline-none" 
+                                className="relative z-20 mt-4 w-full bg-brand-dark/50 border border-[rgba(255,255,255,0.1)] rounded-md px-4 py-2 text-brand-light placeholder-[#8A8A8E] focus:ring-2 focus:ring-[#007BFF] focus:outline-none" 
                                 placeholder="https://youtube.com/watch?v=..."
                                 disabled={isLoading}
                             />
