@@ -141,6 +141,7 @@ function VideoDNAGenerator() {
                 setStatusMessage('Uploading video...');
                 const uploadedFile = await genAIFileClient.files.upload({ file: videoFile });
                 
+                // --- NEW FIX: Add a check for uploadedFile.name ---
                 if (!uploadedFile || !uploadedFile.name) {
                     throw new Error("File upload failed or the file is missing a name.");
                 }
