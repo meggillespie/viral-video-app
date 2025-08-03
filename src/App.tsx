@@ -43,7 +43,10 @@ export default function App() {
 
 // --- The Core Application Logic & UI ---
 function VideoDNAGenerator() {
-    const { user, getToken } = useAuth();
+    // --- CORRECTED: Clerk hooks are now used correctly ---
+    const { getToken } = useAuth();
+    const { user } = useUser();
+
     const [creditBalance, setCreditBalance] = useState<number | null>(null);
     const [isFetchingCredits, setIsFetchingCredits] = useState(true);
     const [videoSource, setVideoSource] = useState('');
@@ -107,30 +110,24 @@ function VideoDNAGenerator() {
     const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }, []);
     const handleDragLeave = useCallback((e: DragEvent<HTMLDivElement>) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); }, []);
     
-    // --- UPDATED: Robust Rich Text Copy ---
     const handleCopy = () => {
         if (!generatedResult) return;
         const html = generatedResult.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>').replace(/(\r\n|\n|\r)/g, '<br>');
-        
         const listener = (e: ClipboardEvent) => {
             e.preventDefault();
             e.clipboardData?.setData('text/html', html);
             e.clipboardData?.setData('text/plain', generatedResult.replace(/\*\*|\*/g, ''));
         };
-
         document.addEventListener('copy', listener);
         document.execCommand('copy');
         document.removeEventListener('copy', listener);
-
         setCopyButtonText('Copied!');
         setTimeout(() => setCopyButtonText('Copy'), 2000);
     };
 
     const handleGenerate = async (e: React.FormEvent) => {
         e.preventDefault();
-        // --- UPDATED: More robust state clearing ---
         setError(''); setGeneratedResult(''); setStatusMessage('');
-        
         if ((creditBalance ?? 0) <= 0) { setError("You have no credits left."); return; }
         if (!topic) { setError("Please enter a topic."); return; }
         if (!videoSource && !videoFile) { setError("Please provide a source video."); return; }
@@ -151,6 +148,8 @@ function VideoDNAGenerator() {
                     file = await genAIFileClient.files.get({ name: uploadedFile.name });
                 }
                 if (file.state === 'FAILED') throw new Error('Video processing failed.');
+                // --- CORRECTED: Added checks for potentially undefined properties ---
+                if (!file.uri) throw new Error('Could not get file URI after upload.');
                 fileUri = file.uri;
                 mimeType = file.mimeType || 'video/mp4';
             } else {
