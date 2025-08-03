@@ -148,10 +148,12 @@ function VideoDNAGenerator() {
                     file = await genAIFileClient.files.get({ name: uploadedFile.name });
                 }
                 if (file.state === 'FAILED') throw new Error('Video processing failed.');
+                
                 // --- CORRECTED: Added checks for potentially undefined properties ---
                 if (!file.uri) throw new Error('Could not get file URI after upload.');
                 fileUri = file.uri;
                 mimeType = file.mimeType || 'video/mp4';
+
             } else {
                 setStatusMessage('Checking video duration...');
                 const durationResponse = await fetch('/api/get-video-duration', {
@@ -173,7 +175,9 @@ function VideoDNAGenerator() {
             });
             if (!response.ok) { const errData = await response.json(); throw new Error(errData.error || `Request failed`); }
             const data = await response.json();
-            setGeneratedResult(data.result);
+            
+            // --- CORRECTED: Handle potentially undefined result ---
+            setGeneratedResult(data.result || 'No result returned from API.');
 
             const token = await getToken({ template: 'supabase' });
             if (!token) throw new Error("Could not get token to decrement credits.");
