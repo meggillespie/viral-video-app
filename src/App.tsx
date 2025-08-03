@@ -17,6 +17,7 @@ const Logo = () => ( <svg className="w-8 h-8 text-[#007BFF]" viewBox="0 0 24 24"
 const CopyIcon = () => ( <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-clipboard-copy"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M9 12h6"></path><path d="M12 9v6"></path></svg> );
 
 // --- Markdown Renderer Component ---
+// This component takes the raw text from Gemini and converts basic Markdown to HTML
 const MarkdownRenderer = ({ text }: { text: string }) => {
     const html = text
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold
@@ -98,14 +99,21 @@ function VideoDNAGenerator() {
     const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }, []);
     const handleDragLeave = useCallback((e: DragEvent<HTMLDivElement>) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); }, []);
 
+    // Copy to clipboard
     const handleCopy = () => {
         if (navigator.clipboard && generatedResult) {
-            navigator.clipboard.writeText(generatedResult.replace(/<br>/g, '\n')); // Convert <br> back to newlines for copying
+            // Create a temporary element to parse the HTML and get the plain text
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = generatedResult.replace(/<br>/g, '\n');
+            const textToCopy = tempDiv.textContent || tempDiv.innerText || "";
+
+            navigator.clipboard.writeText(textToCopy);
             setCopyButtonText('Copied!');
             setTimeout(() => setCopyButtonText('Copy'), 2000);
         }
     };
 
+    // Main generation logic
     const handleGenerate = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
