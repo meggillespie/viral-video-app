@@ -1,31 +1,12 @@
-// api/clerk-webhook.ts
-
+import { Request, Response } from 'express';
 import { Webhook } from 'svix';
-import { createClient } from '@supabase/supabase-js';
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { supabaseAdmin } from '../services';
 
-// This helper function reads the raw request body from the stream
-async function buffer(readable: any) {
-  const chunks = [];
-  for await (const chunk of readable) {
-    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
-  }
-  return Buffer.concat(chunks);
-}
+const CLERK_WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', 'POST');
-    return res.status(405).end('Method Not Allowed');
-  }
-
-  const CLERK_WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SECRET;
-  const SUPABASE_URL = process.env.SUPABASE_URL;
-  const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
-
-  if (!CLERK_WEBHOOK_SECRET || !SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-    console.error('Server configuration error: Missing environment variables.');
-    return res.status(500).json({ error: 'Server configuration error.' });
+export const clerkWebhookRoute = async (req: Request, res: Response) => {
+  if (!CLERK_WEBHOOK_SECRET) {
+    return res.status(500).json({ error: 'Server configuration error: Missing CLERK_WEBHOOK_SECRET.' });
   }
 
   const svix_id = req.headers['svix-id'] as string;
@@ -39,8 +20,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const wh = new Webhook(CLERK_WEBHOOK_SECRET);
   
   try {
-    const body = await buffer(req); // Use our helper to get the raw body
-    const payload: any = wh.verify(body.toString('utf8'), {
+    // The body is already raw (Buffer) thanks to the middleware in index.ts
+    const payload: any = wh.verify(req.body, {
         "svix-id": svix_id,
         "svix-timestamp": svix_timestamp,
         "svix-signature": svix_signature,
@@ -53,10 +34,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!id || !email) {
         return res.status(400).json({ error: 'Missing user ID or email.' });
       }
-
-      const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
       
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from('profiles')
         .insert({ id: id, email: email, credit_balance: 3, subscription_tier: 'free' });
 
@@ -65,7 +44,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(500).json({ error: 'Failed to create user profile.' });
       }
 
-      console.log(`Successfully created profile for user ${id}`);
       return res.status(201).json({ message: 'User created successfully.' });
     }
 
@@ -75,4 +53,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.error('Webhook verification error:', err.message);
     return res.status(400).json({ error: `Webhook Error: ${err.message}` });
   }
-}
+};

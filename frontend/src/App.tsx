@@ -1,12 +1,19 @@
 import React, { useState, useEffect, useCallback, DragEvent } from 'react';
-// Removed useMemo, GoogleGenAI
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser, useAuth } from "@clerk/clerk-react";
 import { createClient } from '@supabase/supabase-js';
 
 // --- Client Setups & Configuration ---
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Initialize Supabase client for frontend use (e.g., calling Edge Functions)
 const supabase = createClient(supabaseUrl || "https://example.supabase.co", supabaseAnonKey || "example-anon-key");
+
+// NEW: Define the backend URL from environment variables (Points to Google Cloud Run)
+const BACKEND_API_URL = import.meta.env.VITE_BACKEND_API_URL;
+
+if (!BACKEND_API_URL) {
+    console.error("CRITICAL: VITE_BACKEND_API_URL is not set. API calls will fail. Ensure this is set in your Vercel environment.");
+}
 
 const MAX_DURATION_SECONDS = 120; // 2 minutes limit for stability
 
@@ -24,9 +31,9 @@ const MarkdownRenderer = ({ text }: { text: string }) => {
     return <div className="whitespace-pre-wrap font-mono text-sm text-brand-light/80 leading-relaxed" dangerouslySetInnerHTML={{ __html: html }} />;
 };
 
-// --- Main App Component (Remains the same) ---
+// --- Main App Component ---
 export default function App() {
-     return (
+    return (
         <>
             <style>{`.segmented-control input{display:none}.segmented-control label{transition:all .2s ease-in-out}.segmented-control input:checked+label{background-color:#007BFF;color:#fff;font-weight:600;box-shadow:0 2px 4px rgba(0,0,0,.2)}`}</style>
             <div className="bg-[#111115] min-h-screen font-sans text-[#F5F5F7] relative">
@@ -70,9 +77,26 @@ function VideoDNAGenerator() {
     const [isDragging, setIsDragging] = useState(false);
     const [copyStatus, setCopyStatus] = useState('');
 
-    // (useEffect for loadUserData remains the same as original file)
+    // Load User Data (Credits)
+    useEffect(() => {
+        const loadUserData = async () => {
+            if (user && getToken) {
+                setIsFetchingCredits(true);
+                try {
+                    const token = await getToken({ template: 'supabase' });
+                    if (!token) throw new Error("Clerk token not found.");
+                    // Call the Supabase Edge Function
+                    const { data, error: funcError } = await supabase.functions.invoke('get-credits', { headers: { Authorization: `Bearer ${token}` } });
+                    if (funcError) throw funcError;
+                    setCreditBalance(data.credit_balance);
+                } catch (err) { console.error("Error loading user data:", err); setCreditBalance(0); }
+                finally { setIsFetchingCredits(false); }
+            }
+        };
+        loadUserData();
+    }, [user, getToken]);
 
-    // --- UPDATED: Enforce 2-minute limit ---
+    // Video Duration Check (2-minute limit)
     const checkFileDuration = (file: File): Promise<void> => {
         return new Promise((resolve, reject) => {
             const video = document.createElement('video');
@@ -91,6 +115,7 @@ function VideoDNAGenerator() {
         });
     };
 
+    // File Handling
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
@@ -113,7 +138,7 @@ function VideoDNAGenerator() {
     const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }, []);
     const handleDragLeave = useCallback((e: DragEvent<HTMLDivElement>) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); }, []);
     
-    // --- FIX: Modern Rich Text Copy Function ---
+    // Modern Rich Text Copy Function
     const handleCopy = async (textToCopy: string, isFormatted: boolean = false, feedbackId: string = 'global') => {
         try {
             if (isFormatted) {
@@ -147,11 +172,16 @@ function VideoDNAGenerator() {
         }
     };
 
-
-    // --- UPDATED: Secure Generation Flow with Signed URLs ---
+    // --- Generation Flow (Updated for GCR Backend) ---
     const handleGenerate = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(''); setGeneratedResult(null); setStatusMessage('');
+
+        if (!BACKEND_API_URL) {
+            setError("Application configuration error: Backend URL is missing.");
+            return;
+        }
+
         if ((creditBalance ?? 0) <= 0) { setError("You have no credits left."); return; }
         if (!topic) { setError("Please enter a topic."); return; }
         if (!videoSource && !videoFile) { setError("Please provide a source video."); return; }
@@ -163,11 +193,11 @@ function VideoDNAGenerator() {
             let finalMimeType = '';
 
             if (videoFile) {
-                // --- Flow A: Signed URL Upload ---
+                // --- Flow A: Signed URL Upload (via GCR) ---
 
-                // Step 1: Get Authorization
+                // Step 1: Get Authorization (Call Cloud Run)
                 setStatusMessage('Authorizing secure upload...');
-                const authResponse = await fetch('/api/create-signed-url', {
+                const authResponse = await fetch(`${BACKEND_API_URL}/api/create-signed-url`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ fileName: videoFile.name, contentType: videoFile.type }),
@@ -178,7 +208,6 @@ function VideoDNAGenerator() {
 
                 // Step 2: Upload directly to Supabase
                 setStatusMessage('Uploading video to storage...');
-                // We must use fetch for the actual signed URL upload with specific headers
                 const uploadResponse = await fetch(signedUrl, {
                     method: 'PUT',
                     headers: {
@@ -193,18 +222,17 @@ function VideoDNAGenerator() {
                     throw new Error('Failed to upload video to Supabase Storage.');
                 }
 
-                // Step 3: Backend Transfer (Supabase to Gemini)
-                setStatusMessage('Processing video for AI analysis (this may take time)...');
-                const transferResponse = await fetch('/api/transfer-to-gemini', {
+                // Step 3: Backend Transfer (Call Cloud Run - The long process)
+                setStatusMessage('Processing video for AI analysis...');
+                const transferResponse = await fetch(`${BACKEND_API_URL}/api/transfer-to-gemini`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ filePath: path, mimeType: videoFile.type }),
                 });
 
                 if (!transferResponse.ok) {
-                     // This is where Vercel timeouts (504 Gateway Timeout) often occur
                     const errText = await transferResponse.text().catch(() => 'Unknown transfer error');
-                    throw new Error(`Video transfer failed. The process may have timed out. Details: ${errText}`);
+                    throw new Error(`Video transfer failed. Details: ${errText}`);
                 }
 
                 const transferData = await transferResponse.json();
@@ -213,9 +241,9 @@ function VideoDNAGenerator() {
 
 
             } else {
-                // --- Flow B: YouTube Link (Corrected) ---
+                // --- Flow B: YouTube Link (via GCR) ---
                 setStatusMessage('Checking video duration...');
-                const durationResponse = await fetch('/api/get-video-duration', {
+                const durationResponse = await fetch(`${BACKEND_API_URL}/api/get-video-duration`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ videoUrl: videoSource }),
@@ -234,9 +262,9 @@ function VideoDNAGenerator() {
                 finalMimeType = 'video/youtube';
             }
 
-            // --- Flow C: Generation ---
+            // --- Flow C: Generation (via GCR) ---
             setStatusMessage('Analyzing DNA & Generating content...');
-            const response = await fetch('/api/generate', {
+            const response = await fetch(`${BACKEND_API_URL}/api/generate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
@@ -258,7 +286,7 @@ function VideoDNAGenerator() {
                 throw new Error("Received unexpected format from the generation API.");
             }
 
-            // Decrement Credits (Phase 2.3)
+            // Decrement Credits (via Supabase Edge Function)
             const token = await getToken({ template: 'supabase' });
             if (!token) throw new Error("Could not get token to decrement credits.");
             const { error: decrementError } = await supabase.functions.invoke('decrement-credits', { headers: { Authorization: `Bearer ${token}` } });
@@ -342,25 +370,62 @@ function VideoDNAGenerator() {
         );
     };
 
+    // --- Main UI Render ---
     return (
         <div className="w-full max-w-lg mx-auto bg-[rgba(38,38,42,0.6)] rounded-2xl border border-[rgba(255,255,255,0.1)] shadow-2xl backdrop-blur-xl overflow-hidden">
             <div className="p-6 sm:p-8">
-                 {/* ... Header and Form Inputs remain visually the same as the provided file ... */}
-                
-                {/* Updated input handling for clearing state */}
-                 <input id="video-link" type="text" value={videoSource} onChange={(e) => { 
-                     setVideoSource(e.target.value); 
-                     if (videoFile) setVideoFile(null); // Clear file if user types URL
-                 }} 
-                 className="relative z-20 mt-4 w-full ..." 
-                 placeholder="https://youtube.com/watch?v=..." disabled={isLoading} />
-
-                {/* ... Error/Status messages ... */}
-
-                {/* Result Display Integration */}
-                {generatedResult && !isLoading && (
-                    <ResultDisplay result={generatedResult} />
-                )}
+                <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-3"><Logo /><h1 className="text-2xl font-bold text-brand-light">VideoDNA</h1></div>
+                    <div className="text-sm text-[#8A8A8E] bg-black/20 border border-[rgba(255,255,255,0.1)] px-3 py-1 rounded-full">{isFetchingCredits ? '...' : creditBalance ?? 0} Credits</div>
+                </div>
+                <form onSubmit={handleGenerate} className="space-y-6">
+                    <div>
+                        <label className="text-sm font-medium text-[#8A8A8E] mb-2 block">1. Source Video (Max 2 Mins)</label>
+                        <div onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={handleDragLeave} className={`bg-black/30 border-2 border-dashed ${isDragging ? 'border-[#007BFF]' : 'border-brand-gray/40'} rounded-lg p-6 text-center cursor-pointer hover:border-[#007BFF] transition-colors group relative`}>
+                            <input type="file" id="videoFile" onChange={handleFileChange} accept="video/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-0" disabled={isLoading} />
+                            <div className="relative z-10 pointer-events-none"><svg className="mx-auto h-12 w-12 text-[#8A8A8E] group-hover:text-[#007BFF] transition-colors" stroke="currentColor" fill="none" viewBox="0 0 48 48"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path></svg><p className="mt-2 text-sm text-[#8A8A8E]">Drag & Drop or <span className="font-semibold text-[#007BFF]">paste a link</span></p></div>
+                            <input 
+                                id="video-link" 
+                                type="text" 
+                                value={videoSource} 
+                                onChange={(e) => { 
+                                    setVideoSource(e.target.value); 
+                                    if (videoFile) setVideoFile(null); // Clear file if user types URL
+                                }} 
+                                className="relative z-20 mt-4 w-full bg-brand-dark/50 border border-[rgba(255,255,255,0.1)] rounded-md px-4 py-2 text-brand-light placeholder-[#8A8A8E] focus:ring-2 focus:ring-[#007BFF] focus:outline-none" placeholder="https://youtube.com/watch?v=..." disabled={isLoading} />
+                        </div>
+                    </div>
+                    <div>
+                        <label htmlFor="new-topic" className="text-sm font-medium text-[#8A8A8E] mb-2 block">2. New Topic</label>
+                        <input id="new-topic" type="text" value={topic} onChange={e => setTopic(e.target.value)} className="w-full bg-black/20 border border-[rgba(255,255,255,0.1)] rounded-md px-4 py-2.5 text-brand-light placeholder-[#8A8A8E] focus:ring-2 focus:ring-[#007BFF] focus:outline-none" placeholder="e.g., 'The Future of AI Assistants'" disabled={isLoading} />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div>
+                            <label className="text-sm font-medium text-[#8A8A8E] mb-2 block">3. Output Detail</label>
+                            <div className="flex bg-black/20 border border-[rgba(255,255,255,0.1)] rounded-md p-1 segmented-control">
+                                <input type="radio" name="output-detail" id="detail-short" checked={outputDetail === 'Short Form'} onChange={() => setOutputDetail('Short Form')} disabled={isLoading} /><label htmlFor="detail-short" className="flex-1 text-center text-[#8A8A8E] py-2 px-4 rounded-md cursor-pointer">Short Form</label>
+                                <input type="radio" name="output-detail" id="detail-long" checked={outputDetail === 'Long Form'} onChange={() => setOutputDetail('Long Form')} disabled={isLoading} /><label htmlFor="detail-long" className="flex-1 text-center text-[#8A8A8E] py-2 px-4 rounded-md cursor-pointer">Long Form</label>
+                            </div>
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium text-[#8A8A8E] mb-2 block">4. Desired Output</label>
+                            <div className="flex bg-black/20 border border-[rgba(255,255,255,0.1)] rounded-md p-1 segmented-control">
+                                <input type="radio" name="output-type" id="type-script" checked={outputType === 'Script & Analysis'} onChange={() => setOutputType('Script & Analysis')} disabled={isLoading} /><label htmlFor="type-script" className="flex-1 text-center text-[#8A8A8E] py-2 px-4 rounded-md cursor-pointer text-xs sm:text-sm">Script & Analysis</label>
+                                <input type="radio" name="output-type" id="type-prompts" checked={outputType === 'AI Video Prompts'} onChange={() => setOutputType('AI Video Prompts')} disabled={isLoading} /><label htmlFor="type-prompts" className="flex-1 text-center text-[#8A8A8E] py-2 px-4 rounded-md cursor-pointer text-xs sm:text-sm">AI Video Prompts</label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {/* Button shows status message while loading */}
+                    <div className="pt-4"><button type="submit" disabled={isLoading || isFetchingCredits} className="w-full px-6 py-3 font-bold text-white bg-[#007BFF] rounded-lg hover:bg-[#0056b3] transition-all duration-300 shadow-lg hover:shadow-[0_0_20px_0_rgba(0,123,255,0.3)] focus:outline-none focus:ring-4 focus:ring-brand-blue/50 disabled:bg-[#0056b3]/50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center">{isLoading ? <Spinner /> : null}{isLoading ? statusMessage || 'Generating...' : 'Generate'}</button></div>
+                    
+                    {error && (<div className="bg-red-500/20 border border-red-500/30 text-red-300 px-4 py-3 rounded-lg text-sm" role="alert"><strong className="font-bold">Error: </strong><span>{error}</span></div>)}
+                    
+                    {/* Result Display Integration */}
+                    {generatedResult && !isLoading && (
+                        <ResultDisplay result={generatedResult} />
+                    )}
+                </form>
             </div>
         </div>
     );
