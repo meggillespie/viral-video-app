@@ -1,12 +1,12 @@
 // File: /api/generate.ts
-// This version uses the correct syntax for the '@google/genai' package.
+// This version uses the correct syntax and initialization for the '@google/genai' package.
 
 import { GoogleGenAI } from '@google/genai';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-// The library will automatically look for the GOOGLE_API_KEY environment variable.
-// Make sure this is set in your Vercel project settings.
-const ai = new GoogleGenAI();
+// Manually pass the API key from the secure environment variable to the constructor.
+// This is the most robust way to initialize the client in a serverless environment.
+const ai = new GoogleGenAI(process.env.GOOGLE_API_KEY || '');
 
 export default async function handler(
   req: VercelRequest,
@@ -41,7 +41,6 @@ export default async function handler(
     }
 
     // --- Multimodal Input (Video Part) ---
-    // For now, we assume videoSource is a public URL (like YouTube)
     const videoPart = {
       fileData: {
         mimeType: 'video/youtube', // Assuming YouTube for now
@@ -56,7 +55,6 @@ export default async function handler(
     });
 
     // --- Send Success Response ---
-    // Note: The response structure from this endpoint is different.
     return res.status(200).json({ result: response.text });
 
   } catch (error: any) {
