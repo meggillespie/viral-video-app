@@ -1,7 +1,7 @@
 // File: /api/generate.ts
 // This is a Vercel Serverless Function that securely handles Gemini API calls.
 
-import { GoogleGenerativeAI } from '@google/genai';
+import { GoogleGenAI } from '@google/genai';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 // --- Enhanced Logging: Check if the API key is available at startup ---
@@ -9,7 +9,7 @@ console.log('Function starting up...');
 console.log('Is GEMINI_API_KEY available:', !!process.env.GEMINI_API_KEY);
 
 // Initialize the Gemini client with the API key from a secure environment variable.
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+const genAI = new GoogleGenAI(process.env.GEMINI_API_KEY || '');
 
 export default async function handler(
   req: VercelRequest,
