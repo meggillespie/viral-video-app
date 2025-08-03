@@ -1,11 +1,10 @@
 // File: /api/generate.ts
-// This version uses the correct constructor syntax for GoogleGenAI.
+// This version handles both YouTube URLs and uploaded file URIs.
 
 import { GoogleGenAI } from '@google/genai';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-// --- CORRECTED INITIALIZATION ---
-// The constructor expects an object with an apiKey property.
+// Initialize with the API key from a secure environment variable.
 const ai = new GoogleGenAI(process.env.GOOGLE_API_KEY || '');
 
 export default async function handler(
@@ -41,14 +40,15 @@ export default async function handler(
     }
 
     // --- Multimodal Input (Video Part) ---
+    // This now dynamically handles the source type from the frontend
     const videoPart = {
       fileData: {
         mimeType: mimeType,
-        fileUri: videoSource,
+        fileUri: videoSource, // This is now either a YT URL or a Gemini File API URI
       },
     };
 
-    // --- API Call ---
+    // --- API Call using the correct syntax ---
     const response = await ai.models.generateContent({
         model: 'gemini-1.5-flash',
         contents: [{ parts: [{ text: textPrompt }, videoPart] }],
