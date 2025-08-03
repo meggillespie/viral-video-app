@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, DragEvent } from 'react';
+import React, useState, useEffect, useCallback, DragEvent } from 'react';
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser, useAuth } from "@clerk/clerk-react";
 import { createClient } from '@supabase/supabase-js';
 import { GoogleGenAI } from '@google/genai'; // For file uploads
@@ -43,7 +43,6 @@ export default function App() {
 
 // --- The Core Application Logic & UI ---
 function VideoDNAGenerator() {
-    // --- CORRECTED: Clerk hooks are now used correctly ---
     const { getToken } = useAuth();
     const { user } = useUser();
 
@@ -141,6 +140,12 @@ function VideoDNAGenerator() {
             if (videoFile) {
                 setStatusMessage('Uploading video...');
                 const uploadedFile = await genAIFileClient.files.upload({ file: videoFile });
+                
+                // --- NEW FIX: Add a check for uploadedFile.name ---
+                if (!uploadedFile || !uploadedFile.name) {
+                    throw new Error("File upload failed or the file is missing a name.");
+                }
+
                 let file = await genAIFileClient.files.get({ name: uploadedFile.name });
                 while (file.state === 'PROCESSING') {
                     setStatusMessage('Processing video...');
@@ -149,7 +154,6 @@ function VideoDNAGenerator() {
                 }
                 if (file.state === 'FAILED') throw new Error('Video processing failed.');
                 
-                // --- CORRECTED: Added checks for potentially undefined properties ---
                 if (!file.uri) throw new Error('Could not get file URI after upload.');
                 fileUri = file.uri;
                 mimeType = file.mimeType || 'video/mp4';
@@ -176,7 +180,6 @@ function VideoDNAGenerator() {
             if (!response.ok) { const errData = await response.json(); throw new Error(errData.error || `Request failed`); }
             const data = await response.json();
             
-            // --- CORRECTED: Handle potentially undefined result ---
             setGeneratedResult(data.result || 'No result returned from API.');
 
             const token = await getToken({ template: 'supabase' });
