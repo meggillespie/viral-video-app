@@ -6,22 +6,15 @@ import { SignedIn, SignedOut, SignInButton, UserButton, useUser, useAuth } from 
 import { createClient } from '@supabase/supabase-js';
 
 // --- Supabase Client Setup ---
-// This replaces the need for a separate './supabaseClient.ts' file.
-// Make sure your VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in your .env file for local development
-// and as Environment Variables in your Vercel project settings.
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Using placeholders for the preview environment if the variables are not set.
 const supabase = createClient(
     supabaseUrl || "https://example.supabase.co",
     supabaseAnonKey || "example-anon-key"
 );
 
-
 // --- Helper Components ---
-
-// SVG Icon for the loading spinner
 const Spinner = () => (
     <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -29,7 +22,6 @@ const Spinner = () => (
     </svg>
 );
 
-// Logo Icon
 const Logo = () => (
     <svg className="w-8 h-8 text-[#007BFF]" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path></svg>
 );
@@ -38,14 +30,9 @@ const Logo = () => (
 export default function App() {
     return (
         <>
-            {/* Custom styles for segmented controls, mimicking the mockup */}
             <style>{`
-              .segmented-control input {
-                display: none;
-              }
-              .segmented-control label {
-                transition: all 0.2s ease-in-out;
-              }
+              .segmented-control input { display: none; }
+              .segmented-control label { transition: all 0.2s ease-in-out; }
               .segmented-control input:checked + label {
                 background-color: #007BFF;
                 color: #FFFFFF;
@@ -54,30 +41,21 @@ export default function App() {
               }
             `}</style>
             <div className="bg-[#111115] min-h-screen font-sans text-[#F5F5F7] relative">
-                {/* Aurora Background Effect */}
                 <div className="absolute top-0 left-0 right-0 bottom-0 overflow-hidden z-0">
                      <div className="absolute w-[1000px] h-[1000px] bg-[radial-gradient(circle_at_20%_20%,_rgba(0,123,255,0.15),_transparent_30%)] animate-[spin_20s_linear_infinite]"></div>
                      <div className="absolute w-[1000px] h-[1000px] bg-[radial-gradient(circle_at_80%_70%,_rgba(230,0,255,0.1),_transparent_30%)] animate-[spin_20s_linear_infinite_reverse]"></div>
                 </div>
-
                 <header className="absolute top-0 right-0 p-6 z-20">
-                    <SignedIn>
-                        <UserButton afterSignOutUrl="/" />
-                    </SignedIn>
+                    <SignedIn><UserButton afterSignOutUrl="/" /></SignedIn>
                 </header>
-                
                 <main className="relative z-10 flex items-center justify-center min-h-screen p-4">
-                    <SignedIn>
-                        <VideoDNAGenerator />
-                    </SignedIn>
+                    <SignedIn><VideoDNAGenerator /></SignedIn>
                     <SignedOut>
                         <div className="text-center p-16 bg-[rgba(38,38,42,0.6)] rounded-2xl border border-[rgba(255,255,255,0.1)] shadow-2xl backdrop-blur-xl">
                             <h2 className="text-3xl font-bold mb-4">Welcome to VideoDNA</h2>
                             <p className="text-[#8A8A8E] my-4">Please sign in to continue.</p>
                             <SignInButton mode="modal">
-                                <button className="px-6 py-2 bg-[#007BFF] text-white font-semibold rounded-lg hover:bg-[#0056b3] transition-colors">
-                                    Sign In
-                                </button>
+                                <button className="px-6 py-2 bg-[#007BFF] text-white font-semibold rounded-lg hover:bg-[#0056b3] transition-colors">Sign In</button>
                             </SignInButton>
                         </div>
                     </SignedOut>
@@ -87,31 +65,25 @@ export default function App() {
     );
 }
 
-
 // --- The Core Application Logic & UI ---
 function VideoDNAGenerator() {
     const { user } = useUser();
     const { getToken } = useAuth();
 
-    // --- STATE MANAGEMENT ---
-    // User & Credits
+    // States
     const [creditBalance, setCreditBalance] = useState<number | null>(null);
     const [isFetchingCredits, setIsFetchingCredits] = useState(true);
-    
-    // Form Inputs
-    const [videoSource, setVideoSource] = useState(''); // Can be URL or file name
+    const [videoSource, setVideoSource] = useState('');
     const [topic, setTopic] = useState('');
     const [outputDetail, setOutputDetail] = useState('Short Form');
     const [outputType, setOutputType] = useState('AI Video Prompts');
     const [videoFile, setVideoFile] = useState<File | null>(null);
-
-    // UI & Generation State
     const [isLoading, setIsLoading] = useState(false);
     const [generatedResult, setGeneratedResult] = useState('');
     const [error, setError] = useState('');
     const [isDragging, setIsDragging] = useState(false);
 
-    // --- DATA FETCHING ---
+    // Fetch user credits
     useEffect(() => {
         const loadUserData = async () => {
             if (user && getToken) {
@@ -119,11 +91,9 @@ function VideoDNAGenerator() {
                 try {
                     const token = await getToken({ template: 'supabase' });
                     if (!token) throw new Error("Clerk token not found.");
-
                     const { data, error: funcError } = await supabase.functions.invoke('get-credits', {
                         headers: { Authorization: `Bearer ${token}` }
                     });
-
                     if (funcError) throw funcError;
                     setCreditBalance(data.credit_balance);
                 } catch (err) {
@@ -137,70 +107,89 @@ function VideoDNAGenerator() {
         loadUserData();
     }, [user, getToken]);
 
-    // --- FILE HANDLING ---
+    // File handling
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             setVideoFile(e.target.files[0]);
-            setVideoSource(e.target.files[0].name); // Show file name
+            setVideoSource(e.target.files[0].name);
         }
     };
-
     const handleDrop = useCallback((e: DragEvent<HTMLDivElement>) => {
         e.preventDefault();
         e.stopPropagation();
         setIsDragging(false);
-        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-            if (e.dataTransfer.files[0].type.startsWith('video/')) {
-                setVideoFile(e.dataTransfer.files[0]);
-                setVideoSource(e.dataTransfer.files[0].name);
-                setError('');
-            } else {
-                setError('Please drop a valid video file.');
-            }
+        if (e.dataTransfer.files && e.dataTransfer.files[0]?.type.startsWith('video/')) {
+            setVideoFile(e.dataTransfer.files[0]);
+            setVideoSource(e.dataTransfer.files[0].name);
+            setError('');
+        } else {
+            setError('Please drop a valid video file.');
         }
     }, []);
+    const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }, []);
+    const handleDragLeave = useCallback((e: DragEvent<HTMLDivElement>) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); }, []);
 
-    const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDragging(true);
-    }, []);
-
-    const handleDragLeave = useCallback((e: DragEvent<HTMLDivElement>) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDragging(false);
-    }, []);
-
-    // --- CORE LOGIC ---
+    // --- CORE GENERATION LOGIC ---
     const handleGenerate = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
         setGeneratedResult('');
-        setIsLoading(true);
         
-        // TODO: Implement Phase 2 Logic
-        
-        console.log({
-            videoSource,
-            topic,
-            outputDetail,
-            outputType,
-            videoFile
-        });
+        // --- Phase 2: Input Validation & Credit Check ---
+        if ((creditBalance ?? 0) <= 0) {
+            setError("You have no credits left. Please subscribe to continue.");
+            return;
+        }
+        if (!topic) {
+            setError("Please enter a topic for your new video.");
+            return;
+        }
+        if (!videoSource && !videoFile) {
+            setError("Please provide a source video link or upload a file.");
+            return;
+        }
+        // NOTE: Video file handling logic will be added next.
+        if (videoFile) {
+            setError("File upload processing is not yet implemented. Please use a YouTube link for now.");
+            return;
+        }
 
-        // Placeholder for now
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate async work
-        setError("Generation logic not yet implemented. This is a placeholder.");
-        
-        setIsLoading(false);
+        setIsLoading(true);
+
+        try {
+            // --- This now securely calls our Vercel backend function ---
+            const response = await fetch('/api/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    topic,
+                    outputDetail,
+                    outputType,
+                    videoSource,
+                }),
+            });
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error || `Request failed with status ${response.status}`);
+            }
+
+            const data = await response.json();
+            setGeneratedResult(data.result);
+
+            // TODO: Call the `decrement-credits` function here upon success.
+
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     // --- UI RENDERING ---
     return (
         <div className="w-full max-w-lg mx-auto bg-[rgba(38,38,42,0.6)] rounded-2xl border border-[rgba(255,255,255,0.1)] shadow-2xl backdrop-blur-xl overflow-hidden">
             <div className="p-6 sm:p-8">
-                {/* Header */}
                 <div className="flex items-center justify-between mb-8">
                     <div className="flex items-center gap-3">
                         <Logo />
@@ -211,51 +200,24 @@ function VideoDNAGenerator() {
                     </div>
                 </div>
 
-                {/* Main Form */}
                 <form onSubmit={handleGenerate} className="space-y-6">
-                    {/* Step 1: Video Input */}
                     <div>
                         <label className="text-sm font-medium text-[#8A8A8E] mb-2 block">1. Source Video</label>
-                        <div 
-                            onDrop={handleDrop}
-                            onDragOver={handleDragOver}
-                            onDragLeave={handleDragLeave}
-                            className={`bg-black/30 border-2 border-dashed ${isDragging ? 'border-[#007BFF]' : 'border-brand-gray/40'} rounded-lg p-6 text-center cursor-pointer hover:border-[#007BFF] transition-colors group relative`}
-                        >
-                             <input
-                                type="file"
-                                id="videoFile"
-                                onChange={handleFileChange}
-                                accept="video/*"
-                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-0"
-                                disabled={isLoading}
-                            />
+                        <div onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={handleDragLeave} className={`bg-black/30 border-2 border-dashed ${isDragging ? 'border-[#007BFF]' : 'border-brand-gray/40'} rounded-lg p-6 text-center cursor-pointer hover:border-[#007BFF] transition-colors group relative`}>
+                            <input type="file" id="videoFile" onChange={handleFileChange} accept="video/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-0" disabled={isLoading} />
                             <div className="relative z-10 pointer-events-none">
-                                <svg className="mx-auto h-12 w-12 text-[#8A8A8E] group-hover:text-[#007BFF] transition-colors" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path></svg>
+                                <svg className="mx-auto h-12 w-12 text-[#8A8A8E] group-hover:text-[#007BFF] transition-colors" stroke="currentColor" fill="none" viewBox="0 0 48 48"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path></svg>
                                 <p className="mt-2 text-sm text-[#8A8A8E]">Drag & Drop or <span className="font-semibold text-[#007BFF]">paste a link</span></p>
                             </div>
-                            <input 
-                                id="video-link" 
-                                type="text" 
-                                value={videoSource}
-                                onChange={(e) => {
-                                    setVideoSource(e.target.value);
-                                    setVideoFile(null);
-                                }}
-                                className="relative z-20 mt-4 w-full bg-brand-dark/50 border border-[rgba(255,255,255,0.1)] rounded-md px-4 py-2 text-brand-light placeholder-[#8A8A8E] focus:ring-2 focus:ring-[#007BFF] focus:outline-none" 
-                                placeholder="https://youtube.com/watch?v=..."
-                                disabled={isLoading}
-                            />
+                            <input id="video-link" type="text" value={videoSource} onChange={(e) => { setVideoSource(e.target.value); setVideoFile(null); }} className="relative z-20 mt-4 w-full bg-brand-dark/50 border border-[rgba(255,255,255,0.1)] rounded-md px-4 py-2 text-brand-light placeholder-[#8A8A8E] focus:ring-2 focus:ring-[#007BFF] focus:outline-none" placeholder="https://youtube.com/watch?v=..." disabled={isLoading} />
                         </div>
                     </div>
 
-                    {/* Step 2: New Topic */}
                     <div>
                         <label htmlFor="new-topic" className="text-sm font-medium text-[#8A8A8E] mb-2 block">2. New Topic</label>
                         <input id="new-topic" type="text" value={topic} onChange={e => setTopic(e.target.value)} className="w-full bg-black/20 border border-[rgba(255,255,255,0.1)] rounded-md px-4 py-2.5 text-brand-light placeholder-[#8A8A8E] focus:ring-2 focus:ring-[#007BFF] focus:outline-none" placeholder="e.g., 'The Future of AI Assistants'" disabled={isLoading} />
                     </div>
 
-                    {/* Step 3 & 4: Segmented Controls */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <div>
                             <label className="text-sm font-medium text-[#8A8A8E] mb-2 block">3. Output Detail</label>
@@ -277,7 +239,6 @@ function VideoDNAGenerator() {
                         </div>
                     </div>
                     
-                    {/* Action Button */}
                     <div className="pt-4">
                         <button type="submit" disabled={isLoading || isFetchingCredits} className="w-full px-6 py-3 font-bold text-white bg-[#007BFF] rounded-lg hover:bg-[#0056b3] transition-all duration-300 shadow-lg hover:shadow-[0_0_20px_0_rgba(0,123,255,0.3)] focus:outline-none focus:ring-4 focus:ring-brand-blue/50 disabled:bg-[#0056b3]/50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center">
                             {isLoading ? <Spinner /> : null}
@@ -285,7 +246,6 @@ function VideoDNAGenerator() {
                         </button>
                     </div>
 
-                    {/* Error Display */}
                     {error && (
                         <div className="bg-red-500/20 border border-red-500/30 text-red-300 px-4 py-3 rounded-lg text-sm" role="alert">
                             <strong className="font-bold">Error: </strong>
@@ -293,7 +253,6 @@ function VideoDNAGenerator() {
                         </div>
                     )}
                     
-                    {/* Result Display */}
                     {generatedResult && !isLoading && (
                         <div className="mt-6 bg-black/20 border border-[rgba(255,255,255,0.1)] rounded-lg p-4">
                             <h3 className="font-semibold text-lg mb-2">Generated Result:</h3>
