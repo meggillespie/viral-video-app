@@ -1,18 +1,19 @@
 // File: /api/generate.ts
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI, Part } from '@google/generative-ai';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 // Initialization
 const API_KEY = process.env.GOOGLE_API_KEY || '';
 const genAI = new GoogleGenerativeAI(API_KEY);
 
-// Define the prompts (Insert the refined prompts from Section 4.1 here)
-const ANALYSIS_PROMPT = `You are VideoDNA, an expert AI system designed to deconstruct the virality of video content. Analyze the provided source video (multimodal input: visuals, audio, pacing, transcript) and extract key performance signals.
+// --- Refined Prompts (Inserted) ---
+
+const ANALYSIS_PROMPT = `
+You are VideoDNA, an expert AI system designed to deconstruct the virality of video content. Analyze the provided source video (multimodal input: visuals, audio, pacing, transcript) and extract key performance signals.
 
 Output the analysis strictly as a structured JSON object. Do NOT include any introductory text or markdown formatting.
 
 The JSON structure must adhere to the following schema:
-
 {
   "meta": {
     "analyzed_style": "e.g., Fast-paced explainer, Vlog, Documentary, Tutorial",
@@ -32,14 +33,17 @@ The JSON structure must adhere to the following schema:
     "ctas": ["List specific Calls to Action used (verbal or visual)."],
     "interactive_elements": "Describe elements encouraging comments/likes (e.g., Poll suggestions, asking open-ended questions)."
   }
-}`; 
-const SCRIPT_GENERATION_TEMPLATE = `You are an expert video scriptwriter. Use the provided viral analysis blueprint to write a new video script.
+}
+`;
+
+const SCRIPT_GENERATION_TEMPLATE = `
+You are an expert video scriptwriter. Use the provided viral analysis blueprint to write a new video script.
 
 Source Analysis Blueprint (Reference DNA):
-${ANALYSIS_JSON}
+\${ANALYSIS_JSON}
 
-New Topic: ${USER_TOPIC}
-Desired Format: ${OUTPUT_DETAIL}
+New Topic: \${USER_TOPIC}
+Desired Format: \${OUTPUT_DETAIL}
 
 Instructions:
 1. Create a complete script for the New Topic.
@@ -48,15 +52,17 @@ Instructions:
 4. Pacing and Structure: Mirror the 'retention_signals.narrative_structure'.
 5. Tone: Adopt the 'meta.primary_tone'.
 
-Format the output as a script, including clear markers for [Visuals/B-Roll suggestions] and (Audio/Tone cues).`;
+Format the output as a script, including clear markers for [Visuals/B-Roll suggestions] and (Audio/Tone cues).
+`;
 
-const VEO_GENERATION_TEMPLATE = `You are an AI Video Director. Create a sequence of highly detailed visual prompts optimized for the Google VEO text-to-video API. Use the provided viral analysis as a stylistic blueprint.
+const VEO_GENERATION_TEMPLATE = `
+You are an AI Video Director. Create a sequence of highly detailed visual prompts optimized for the Google VEO text-to-video API. Use the provided viral analysis as a stylistic blueprint.
 
 Source Analysis Blueprint:
-${ANALYSIS_JSON}
+\${ANALYSIS_JSON}
 
-New Topic: ${USER_TOPIC}
-Desired Format: ${OUTPUT_DETAIL}
+New Topic: \${USER_TOPIC}
+Desired Format: \${OUTPUT_DETAIL}
 
 Instructions:
 1. Storyboard the New Topic, breaking it down into a sequence of distinct scenes (5-8 scenes for Short Form, 8-15 for Long Form).
@@ -70,7 +76,8 @@ VEO Prompt Requirements:
 
 Output Format:
 Return the result strictly as a JSON array of strings. Do NOT include any introductory or concluding text.
-Example: ["Prompt for scene 1...", "Prompt for scene 2..."]`;
+Example: ["Prompt for scene 1...", "Prompt for scene 2..."]
+`;
 
 
 export default async function handler(
@@ -78,22 +85,25 @@ export default async function handler(
   res: VercelResponse,
 ) {
   // (CORS and Method checks remain the same)
+  res.setHeader('Access-Control-Allow-Origin', '*');
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
 
   try {
     const { topic, outputDetail, outputType, videoSource, mimeType } = req.body;
 
-    // (Input validation remains the same)
-
-    // --- CRITICAL LIMITATION CHECK ---
-    // The Gemini API requires the File API for multimodal input. It does not accept YouTube URLs.
-    if (mimeType === 'video/youtube') {
-        return res.status(400).json({ error: 'YouTube analysis is not supported in this version. Please upload the video file (Max 4.5MB).' });
+    if (!topic || !outputDetail || !outputType || !videoSource || !mimeType) {
+      return res.status(400).json({ error: 'Missing required fields.' });
     }
 
-    const videoPart = {
+    // --- Input Preparation ---
+    // Gemini API handles both YouTube URLs and File API URIs using the fileData structure.
+    const videoPart: Part = {
       fileData: {
         mimeType: mimeType,
-        fileUri: videoSource, // This is the Gemini File API URI from /api/upload-video
+        fileUri: videoSource, // This is either a Gemini URI (from transfer) or a YouTube URL
       },
     };
 
@@ -176,6 +186,10 @@ export default async function handler(
   } catch (error: any) {
     console.error('--- FATAL ERROR in /api/generate ---');
     console.error('Error Message:', error.message);
+     // Handle potential timeouts during the AI execution
+    if (error.message.includes('timeout') || error.code === 'ECONNRESET') {
+        return res.status(504).json({ error: 'The AI generation timed out. Please try again or use a shorter video.' });
+    }
     return res.status(500).json({ error: 'An internal server error occurred.' });
   }
 }

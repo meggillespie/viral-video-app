@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useCallback, DragEvent } from 'react';
-// REMOVED: useMemo, GoogleGenAI (Security Fix)
+// Removed useMemo, GoogleGenAI
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser, useAuth } from "@clerk/clerk-react";
 import { createClient } from '@supabase/supabase-js';
 
-// --- Client Setups ---
+// --- Client Setups & Configuration ---
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl || "https://example.supabase.co", supabaseAnonKey || "example-anon-key");
 
+const MAX_DURATION_SECONDS = 120; // 2 minutes limit for stability
+
 // --- Helper Components & Types ---
-// NEW: Type definition for structured output from API
 interface GenerationResult {
     analysis: object;
     content: string | string[]; // Script (string) or VEO Prompts (string[])
@@ -25,7 +26,28 @@ const MarkdownRenderer = ({ text }: { text: string }) => {
 
 // --- Main App Component (Remains the same) ---
 export default function App() {
-    // ... (App component structure remains the same as provided file)
+     return (
+        <>
+            <style>{`.segmented-control input{display:none}.segmented-control label{transition:all .2s ease-in-out}.segmented-control input:checked+label{background-color:#007BFF;color:#fff;font-weight:600;box-shadow:0 2px 4px rgba(0,0,0,.2)}`}</style>
+            <div className="bg-[#111115] min-h-screen font-sans text-[#F5F5F7] relative">
+                <div className="absolute top-0 left-0 right-0 bottom-0 overflow-hidden z-0">
+                     <div className="absolute w-[1000px] h-[1000px] bg-[radial-gradient(circle_at_20%_20%,_rgba(0,123,255,0.15),_transparent_30%)] animate-[spin_20s_linear_infinite]"></div>
+                     <div className="absolute w-[1000px] h-[1000px] bg-[radial-gradient(circle_at_80%_70%,_rgba(230,0,255,0.1),_transparent_30%)] animate-[spin_20s_linear_infinite_reverse]"></div>
+                </div>
+                <header className="absolute top-0 right-0 p-6 z-20"><SignedIn><UserButton afterSignOutUrl="/" /></SignedIn></header>
+                <main className="relative z-10 flex items-center justify-center min-h-screen p-4">
+                    <SignedIn><VideoDNAGenerator /></SignedIn>
+                    <SignedOut>
+                        <div className="text-center p-16 bg-[rgba(38,38,42,0.6)] rounded-2xl border border-[rgba(255,255,255,0.1)] shadow-2xl backdrop-blur-xl">
+                            <h2 className="text-3xl font-bold mb-4">Welcome to VideoDNA</h2>
+                            <p className="text-[#8A8A8E] my-4">Please sign in to continue.</p>
+                            <SignInButton mode="modal"><button className="px-6 py-2 bg-[#007BFF] text-white font-semibold rounded-lg hover:bg-[#0056b3] transition-colors">Sign In</button></SignInButton>
+                        </div>
+                    </SignedOut>
+                </main>
+            </div>
+        </>
+    );
 }
 
 // --- The Core Application Logic & UI ---
@@ -33,8 +55,7 @@ function VideoDNAGenerator() {
     const { getToken } = useAuth();
     const { user } = useUser();
 
-    // REMOVED: genAIFileClient initialization (Security Fix)
-
+    // State Definitions
     const [creditBalance, setCreditBalance] = useState<number | null>(null);
     const [isFetchingCredits, setIsFetchingCredits] = useState(true);
     const [videoSource, setVideoSource] = useState('');
@@ -44,15 +65,54 @@ function VideoDNAGenerator() {
     const [videoFile, setVideoFile] = useState<File | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [statusMessage, setStatusMessage] = useState('');
-    // Updated state for structured results
     const [generatedResult, setGeneratedResult] = useState<GenerationResult | null>(null);
     const [error, setError] = useState('');
     const [isDragging, setIsDragging] = useState(false);
-    const [copyStatus, setCopyStatus] = useState(''); // Manages copy feedback
+    const [copyStatus, setCopyStatus] = useState('');
 
-    // (useEffect for loadUserData remains the same)
-    // (checkFileDuration, handleFileChange, handleDrop, handleDragOver, handleDragLeave remain the same)
+    // (useEffect for loadUserData remains the same as original file)
 
+    // --- UPDATED: Enforce 2-minute limit ---
+    const checkFileDuration = (file: File): Promise<void> => {
+        return new Promise((resolve, reject) => {
+            const video = document.createElement('video');
+            video.preload = 'metadata';
+            video.onloadedmetadata = () => { 
+                window.URL.revokeObjectURL(video.src); 
+                if (video.duration > MAX_DURATION_SECONDS) { 
+                    const durationMins = (video.duration / 60).toFixed(1);
+                    reject(new Error(`Video is too long (${durationMins} mins). Max 2 mins for stability.`)); 
+                } else { 
+                    resolve(); 
+                } 
+            };
+            video.onerror = () => reject(new Error('Could not read video file metadata.'));
+            video.src = window.URL.createObjectURL(file);
+        });
+    };
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setError(''); setVideoFile(null); setVideoSource('');
+            try { await checkFileDuration(file); setVideoFile(file); setVideoSource(file.name); }
+            catch (err: any) { setError(err.message); }
+        }
+    };
+
+    const handleDrop = useCallback(async (e: DragEvent<HTMLDivElement>) => {
+        e.preventDefault(); e.stopPropagation(); setIsDragging(false);
+        const file = e.dataTransfer.files?.[0];
+        if (file && file.type.startsWith('video/')) {
+            setError(''); setVideoFile(null); setVideoSource('');
+            try { await checkFileDuration(file); setVideoFile(file); setVideoSource(file.name); }
+            catch (err: any) { setError(err.message); }
+        } else { setError('Please drop a valid video file.'); }
+    }, []);
+    
+    const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }, []);
+    const handleDragLeave = useCallback((e: DragEvent<HTMLDivElement>) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); }, []);
+    
     // --- FIX: Modern Rich Text Copy Function ---
     const handleCopy = async (textToCopy: string, isFormatted: boolean = false, feedbackId: string = 'global') => {
         try {
@@ -87,7 +147,8 @@ function VideoDNAGenerator() {
         }
     };
 
-    // --- UPDATED: Secure Generation Flow ---
+
+    // --- UPDATED: Secure Generation Flow with Signed URLs ---
     const handleGenerate = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(''); setGeneratedResult(null); setStatusMessage('');
@@ -102,41 +163,78 @@ function VideoDNAGenerator() {
             let finalMimeType = '';
 
             if (videoFile) {
-                // --- SECURITY FIX: Use the secure backend upload endpoint ---
-                setStatusMessage('Uploading video securely (Max 4.5MB on Vercel)...');
-                const formData = new FormData();
-                formData.append('video', videoFile);
+                // --- Flow A: Signed URL Upload ---
 
-                // Call the new secure upload handler (See Section 3.2)
-                const uploadResponse = await fetch('/api/upload-video', {
+                // Step 1: Get Authorization
+                setStatusMessage('Authorizing secure upload...');
+                const authResponse = await fetch('/api/create-signed-url', {
                     method: 'POST',
-                    body: formData,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ fileName: videoFile.name, contentType: videoFile.type }),
+                });
+
+                if (!authResponse.ok) throw new Error('Failed to get secure upload authorization.');
+                const { signedUrl, path, token } = await authResponse.json();
+
+                // Step 2: Upload directly to Supabase
+                setStatusMessage('Uploading video to storage...');
+                // We must use fetch for the actual signed URL upload with specific headers
+                const uploadResponse = await fetch(signedUrl, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': videoFile.type,
+                        'Authorization': `Bearer ${token}`,
+                        'x-upsert': 'true',
+                    },
+                    body: videoFile,
                 });
 
                 if (!uploadResponse.ok) {
-                    const errData = await uploadResponse.json();
-                    throw new Error(errData.error || 'Video upload failed. The file might be too large for the server.');
+                    throw new Error('Failed to upload video to Supabase Storage.');
                 }
 
-                const uploadData = await uploadResponse.json();
-                finalFileUri = uploadData.fileUri;
-                finalMimeType = uploadData.mimeType;
-                setStatusMessage('Video uploaded and processed by Gemini.');
+                // Step 3: Backend Transfer (Supabase to Gemini)
+                setStatusMessage('Processing video for AI analysis (this may take time)...');
+                const transferResponse = await fetch('/api/transfer-to-gemini', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filePath: path, mimeType: videoFile.type }),
+                });
+
+                if (!transferResponse.ok) {
+                     // This is where Vercel timeouts (504 Gateway Timeout) often occur
+                    const errText = await transferResponse.text().catch(() => 'Unknown transfer error');
+                    throw new Error(`Video transfer failed. The process may have timed out. Details: ${errText}`);
+                }
+
+                const transferData = await transferResponse.json();
+                finalFileUri = transferData.fileUri;
+                finalMimeType = transferData.mimeType;
+
 
             } else {
-                // YouTube Link Handling (Phase 2.4)
+                // --- Flow B: YouTube Link (Corrected) ---
                 setStatusMessage('Checking video duration...');
                 const durationResponse = await fetch('/api/get-video-duration', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ videoUrl: videoSource }),
                 });
-                // ... (Duration check logic remains the same)
+
+                if (!durationResponse.ok) throw new Error('Could not validate video URL.');
+                const { duration } = await durationResponse.json();
+                
+                // Enforce the 2-minute limit
+                if (duration > MAX_DURATION_SECONDS) {
+                    const durationMins = (duration / 60).toFixed(1);
+                    throw new Error(`Video is too long (${durationMins} mins). Max 2 mins for stability.`);
+                }
                 
                 finalFileUri = videoSource;
                 finalMimeType = 'video/youtube';
             }
 
+            // --- Flow C: Generation ---
             setStatusMessage('Analyzing DNA & Generating content...');
             const response = await fetch('/api/generate', {
                 method: 'POST',
@@ -145,7 +243,7 @@ function VideoDNAGenerator() {
                     topic, 
                     outputDetail, 
                     outputType, 
-                    videoSource: finalFileUri, 
+                    videoSource: finalFileUri, // Gemini URI or YouTube URL
                     mimeType: finalMimeType 
                 }),
             });
@@ -171,12 +269,17 @@ function VideoDNAGenerator() {
             } else {
                 setCreditBalance(prev => (prev ? prev - 1 : 0));
             }
-
-        } catch (err: any) { setError(err.message); }
-        finally { setIsLoading(false); setStatusMessage(''); }
+            
+        } catch (err: any) { 
+            setError(err.message); 
+        }
+        finally { 
+            setIsLoading(false); 
+            setStatusMessage(''); 
+        }
     };
 
-    // --- NEW: Result Display Component (Phase 3.2) ---
+    // --- Result Display Component (Handles Script and VEO Prompts) ---
     const ResultDisplay = ({ result }: { result: GenerationResult }) => {
         const isPromptArray = Array.isArray(result.content);
 
@@ -228,7 +331,7 @@ function VideoDNAGenerator() {
                     </div>
                 )}
 
-                {/* Optional: Display Analysis Data */}
+                {/* Analysis Data Display */}
                 <details className="mt-4">
                     <summary className="cursor-pointer text-blue-400 text-sm">View Viral DNA Analysis (JSON)</summary>
                     <pre className="mt-2 p-3 bg-black/50 rounded text-xs text-gray-300 overflow-x-auto font-mono">
@@ -244,9 +347,17 @@ function VideoDNAGenerator() {
             <div className="p-6 sm:p-8">
                  {/* ... Header and Form Inputs remain visually the same as the provided file ... */}
                 
+                {/* Updated input handling for clearing state */}
+                 <input id="video-link" type="text" value={videoSource} onChange={(e) => { 
+                     setVideoSource(e.target.value); 
+                     if (videoFile) setVideoFile(null); // Clear file if user types URL
+                 }} 
+                 className="relative z-20 mt-4 w-full ..." 
+                 placeholder="https://youtube.com/watch?v=..." disabled={isLoading} />
+
                 {/* ... Error/Status messages ... */}
 
-                {/* NEW: Result Display Integration */}
+                {/* Result Display Integration */}
                 {generatedResult && !isLoading && (
                     <ResultDisplay result={generatedResult} />
                 )}
