@@ -1,7 +1,7 @@
 // File: /api/generate.ts
 // This is a Vercel Serverless Function that securely handles Gemini API calls.
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI } from '@google/genai';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 // --- Enhanced Logging: Check if the API key is available at startup ---
