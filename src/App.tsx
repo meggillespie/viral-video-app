@@ -1,4 +1,4 @@
-import React, useState, useEffect, useCallback, DragEvent } from 'react';
+import React, { useState, useEffect, useCallback, DragEvent } from 'react';
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser, useAuth } from "@clerk/clerk-react";
 import { createClient } from '@supabase/supabase-js';
 import { GoogleGenAI } from '@google/genai'; // For file uploads
@@ -141,7 +141,6 @@ function VideoDNAGenerator() {
                 setStatusMessage('Uploading video...');
                 const uploadedFile = await genAIFileClient.files.upload({ file: videoFile });
                 
-                // --- NEW FIX: Add a check for uploadedFile.name ---
                 if (!uploadedFile || !uploadedFile.name) {
                     throw new Error("File upload failed or the file is missing a name.");
                 }
