@@ -1,7 +1,14 @@
+// File: /api/generate.ts
+// This is a Vercel Serverless Function that securely handles Gemini API calls.
+
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-// Initialize the Gemini client with the API key from environment variables
+// --- Enhanced Logging: Check if the API key is available at startup ---
+console.log('Function starting up...');
+console.log('Is GEMINI_API_KEY available:', !!process.env.GEMINI_API_KEY);
+
+// Initialize the Gemini client with the API key from a secure environment variable.
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 export default async function handler(
@@ -25,17 +32,18 @@ export default async function handler(
   }
 
   try {
+    console.log('Received POST request to /api/generate');
     // Get the data from the frontend request body
     const { topic, outputDetail, outputType, videoSource } = req.body;
 
     // --- Input Validation ---
     if (!topic || !outputDetail || !outputType || !videoSource) {
+      console.error('Validation failed: Missing required fields.');
       return res.status(400).json({ error: 'Missing required fields in request.' });
     }
+    console.log('Validation passed. Body:', req.body);
 
     // --- Prompt Engineering ---
-    // This is where we will build the prompts based on user selection.
-    // For now, we'll use a simple placeholder.
     let prompt = '';
     if (outputType === 'Script & Analysis') {
       prompt = `Create a viral video script.
@@ -52,18 +60,24 @@ export default async function handler(
 
       Generate 5-7 distinct, detailed prompts that form a cohesive narrative.`;
     }
+    console.log('Generated prompt for Gemini.');
 
     // --- AI Model Call ---
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    console.log('Calling Gemini API...');
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
+    console.log('Successfully received response from Gemini.');
 
     // --- Send Success Response ---
     return res.status(200).json({ result: text });
 
-  } catch (error) {
-    console.error('Error in generate function:', error);
-    return res.status(500).json({ error: 'Failed to generate content.' });
+  } catch (error: any) {
+    // --- Enhanced Logging: Print the full error object ---
+    console.error('--- FATAL ERROR in /api/generate ---');
+    console.error('Error Message:', error.message);
+    console.error('Full Error Object:', JSON.stringify(error, null, 2));
+    return res.status(500).json({ error: 'An internal server error occurred.' });
   }
 }
