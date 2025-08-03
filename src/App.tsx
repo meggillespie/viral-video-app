@@ -1,13 +1,12 @@
-import React, { useState, useEffect, useCallback, DragEvent } from 'react';
+import React, { useState, useEffect, useCallback, DragEvent, useMemo } from 'react';
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser, useAuth } from "@clerk/clerk-react";
 import { createClient } from '@supabase/supabase-js';
-import { GoogleGenAI } from '@google/genai'; // For file uploads
+import { GoogleGenAI } from '@google/genai';
 
 // --- Client Setups ---
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl || "https://example.supabase.co", supabaseAnonKey || "example-anon-key");
-const genAIFileClient = new GoogleGenAI(import.meta.env.VITE_GEMINI_API_KEY || '');
 
 // --- Helper Components ---
 const Spinner = () => ( <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> );
@@ -45,6 +44,16 @@ export default function App() {
 function VideoDNAGenerator() {
     const { getToken } = useAuth();
     const { user } = useUser();
+
+    // --- NEW: Safer client initialization ---
+    const genAIFileClient = useMemo(() => {
+        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+        if (!apiKey) {
+            // This will stop the component from rendering and show an error in the console.
+            throw new Error("VITE_GEMINI_API_KEY is not set. Please check your Vercel environment variables.");
+        }
+        return new GoogleGenAI(apiKey);
+    }, []);
 
     const [creditBalance, setCreditBalance] = useState<number | null>(null);
     const [isFetchingCredits, setIsFetchingCredits] = useState(true);
@@ -141,7 +150,6 @@ function VideoDNAGenerator() {
                 setStatusMessage('Uploading video...');
                 const uploadedFile = await genAIFileClient.files.upload({ file: videoFile });
                 
-                // --- NEW FIX: Add a check for uploadedFile.name ---
                 if (!uploadedFile || !uploadedFile.name) {
                     throw new Error("File upload failed or the file is missing a name.");
                 }
