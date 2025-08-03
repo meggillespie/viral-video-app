@@ -21,7 +21,8 @@
     "d3-shape": "^3.2.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "svix": "^1.69.0"
+    "svix": "^1.69.0",
+    "ytdl-core": "^4.11.5"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.1",

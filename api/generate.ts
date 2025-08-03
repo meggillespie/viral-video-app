@@ -1,11 +1,10 @@
 // File: /api/generate.ts
-// This version uses the correct syntax and initialization for the '@google/genai' package.
+// This version handles both YouTube URLs and uploaded file URIs.
 
 import { GoogleGenAI } from '@google/genai';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-// Manually pass the API key from the secure environment variable to the constructor.
-// This is the most robust way to initialize the client in a serverless environment.
+// Initialize with the API key from a secure environment variable.
 const ai = new GoogleGenAI(process.env.GOOGLE_API_KEY || '');
 
 export default async function handler(
@@ -26,9 +25,9 @@ export default async function handler(
   }
 
   try {
-    const { topic, outputDetail, outputType, videoSource } = req.body;
+    const { topic, outputDetail, outputType, videoSource, mimeType } = req.body;
 
-    if (!topic || !outputDetail || !outputType || !videoSource) {
+    if (!topic || !outputDetail || !outputType || !videoSource || !mimeType) {
       return res.status(400).json({ error: 'Missing required fields.' });
     }
 
@@ -41,20 +40,20 @@ export default async function handler(
     }
 
     // --- Multimodal Input (Video Part) ---
+    // This now dynamically handles the source type from the frontend
     const videoPart = {
       fileData: {
-        mimeType: 'video/youtube', // Assuming YouTube for now
-        fileUri: videoSource,
+        mimeType: mimeType,
+        fileUri: videoSource, // This is now either a YT URL or a Gemini File API URI
       },
     };
 
-    // --- CORRECT API Call using the '@google/genai' syntax ---
+    // --- API Call using the correct syntax ---
     const response = await ai.models.generateContent({
         model: 'gemini-1.5-flash',
         contents: [{ parts: [{ text: textPrompt }, videoPart] }],
     });
 
-    // --- Send Success Response ---
     return res.status(200).json({ result: response.text });
 
   } catch (error: any) {
