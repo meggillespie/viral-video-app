@@ -1,5 +1,8 @@
+// File: backend/src/services.ts
+
 import { createClient } from '@supabase/supabase-js';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+// UPDATED: Import GoogleGenAI from @google/genai
+import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -11,11 +14,12 @@ const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY || !GOOGLE_API_KEY) {
     console.error("FATAL: Missing critical environment variables (Supabase or Google).");
-    // Exit if configuration is missing
     if (process.env.NODE_ENV === 'production') {
         process.exit(1);
     }
 }
 
 export const supabaseAdmin = createClient(SUPABASE_URL!, SUPABASE_SERVICE_KEY!);
-export const genAI = new GoogleGenerativeAI(GOOGLE_API_KEY!);
+
+// UPDATED: Initialize using the @google/genai constructor syntax (expects an object)
+export const genAI = new GoogleGenAI({ apiKey: GOOGLE_API_KEY! });

@@ -8,8 +8,11 @@ import { getVideoDurationRoute } from './routes/video';
 import { clerkWebhookRoute } from './routes/clerk-webhook';
 
 const app = express();
-// GCR dynamically sets the PORT environment variable
-const PORT = process.env.PORT || 8080;
+// GCR dynamically sets the PORT environment variable. We must parse it as an integer.
+const PORT = parseInt(process.env.PORT || '8080', 10);
+
+// CRUCIAL FIX: Bind to 0.0.0.0 to accept traffic within the Cloud Run environment
+const HOST = '0.0.0.0'; 
 
 // Middleware
 app.use(cors());
@@ -18,6 +21,7 @@ app.use(cors());
 // Clerk/Svix requires the raw body. We apply JSON parsing only to other routes.
 app.use((req, res, next) => {
     if (req.path === '/api/clerk-webhook') {
+        // Ensure the type is correct for the raw parser
         express.raw({ type: 'application/json' })(req, res, next);
     } else {
         express.json()(req, res, next);
@@ -32,9 +36,11 @@ app.post('/api/get-video-duration', getVideoDurationRoute);
 app.post('/api/clerk-webhook', clerkWebhookRoute);
 
 app.get('/', (req, res) => {
-  res.send('VideoDNA Backend Service is running on Google Cloud Run.');
+  // Updated app name
+  res.send('Vyralize Backend Service is running on Google Cloud Run.');
 });
 
-app.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
+// UPDATED: Listen on the specified HOST and PORT
+app.listen(PORT, HOST, () => {
+  console.log(`Server listening on http://${HOST}:${PORT}`);
 });

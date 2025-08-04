@@ -1,3 +1,5 @@
+// File: backend/src/routes/storage.ts
+
 import { Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { supabaseAdmin, genAI } from '../services';
@@ -26,6 +28,7 @@ export const createSignedUrlRoute = async (req: Request, res: Response) => {
       .createSignedUploadUrl(filePath);
 
     if (error || !data) {
+      console.error("Supabase Signed URL Error:", error);
       return res.status(500).json({ error: 'Failed to create upload authorization.' });
     }
 
@@ -36,6 +39,7 @@ export const createSignedUrlRoute = async (req: Request, res: Response) => {
     });
 
   } catch (error) {
+    console.error("Create Signed URL Route Error:", error);
     return res.status(500).json({ error: 'Internal server error.' });
   }
 };
@@ -44,45 +48,70 @@ export const createSignedUrlRoute = async (req: Request, res: Response) => {
 export const transferToGeminiRoute = async (req: Request, res: Response) => {
     const { filePath, mimeType } = req.body;
 
-    // Use the OS temp directory provided by the GCR environment
+    if (!filePath || !mimeType) {
+        return res.status(400).json({ error: 'filePath and mimeType are required.' });
+    }
+
     const tempLocalPath = path.join(os.tmpdir(), path.basename(filePath));
 
     try {
-        // 1. Get secure download URL (5 min validity)
+        // 1. Get secure download URL
         const { data: signedUrlData, error: urlError } = await supabaseAdmin.storage
             .from(BUCKET)
             .createSignedUrl(filePath, 300); 
 
         if (urlError || !signedUrlData) throw new Error('Failed to get secure download URL.');
 
-        // 2. Download from Supabase to container temp storage (Streaming)
+        // 2. Download from Supabase to container temp storage
         console.log("Starting download from Supabase to container temp storage...");
         const response = await fetch(signedUrlData.signedUrl);
         if (!response.ok) throw new Error(`Failed to download file: ${response.statusText}`);
         
-        // Type compatibility handling for node-fetch v2 stream and Node.js pipeline
         await pipeline(response.body as NodeJS.ReadableStream, fs.createWriteStream(tempLocalPath));
 
         // 3. Upload to Gemini File API
         console.log("Download complete. Starting upload to Gemini...");
-        const fileManager = genAI.getFileManager();
-        const uploadResult = await fileManager.uploadFile(tempLocalPath, { mimeType });
-        const fileName = uploadResult.file.name;
 
-        // 4. Poll for processing (Safe due to GCR's long timeout)
-        console.log("Upload complete. Polling Gemini...");
-        let file = await fileManager.getFile(fileName);
+        const uploadResult = await genAI.files.upload({
+            file: tempLocalPath,
+            config: { mimeType: mimeType },
+        });
+
+        // FIX: Access the name directly from the result object (which is of type File_2).
+        const fileName = uploadResult.name; 
+
+        if (!fileName) {
+            throw new Error("Gemini upload did not return a file name.");
+        }
+
+        // 4. Poll for processing
+        console.log(`Upload initiated (ID: ${fileName}). Polling Gemini...`);
+        
+        let file = await genAI.files.get({ name: fileName });
+
+        // Polling loop
         while (file.state === 'PROCESSING') {
+          console.log(`Polling status: ${file.state}...`);
           await new Promise(resolve => setTimeout(resolve, 10000)); // Poll every 10s
-          const response = await fileManager.getFile(fileName);
-          file = response.file;
+          file = await genAI.files.get({ name: fileName });
         }
       
         if (file.state === 'FAILED') {
-          throw new Error('Video processing failed on Gemini.');
+          // Use nullish coalescing (??) for safety when accessing optional error properties
+          throw new Error(`Video processing failed on Gemini. Details: ${file.error?.message ?? 'Unknown error'}`);
         }
 
-        console.log("Gemini processing complete.");
+        // Ensure the file is ready ('ACTIVE')
+        if (file.state !== 'ACTIVE') {
+            throw new Error(`Video processing ended in unexpected state: ${file.state}`);
+        }
+
+        console.log("Gemini processing complete (ACTIVE).");
+        
+        // Ensure URI and MimeType exist before returning
+        if (!file.uri || !file.mimeType) {
+            throw new Error("Gemini processing succeeded but missing URI or MimeType.");
+        }
         return res.status(200).json({ fileUri: file.uri, mimeType: file.mimeType });
 
     } catch (error: any) {

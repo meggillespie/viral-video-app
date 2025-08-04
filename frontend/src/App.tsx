@@ -1,3 +1,5 @@
+// File: frontend/src/App.tsx
+
 import React, { useState, useEffect, useCallback, DragEvent } from 'react';
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser, useAuth } from "@clerk/clerk-react";
 import { createClient } from '@supabase/supabase-js';
