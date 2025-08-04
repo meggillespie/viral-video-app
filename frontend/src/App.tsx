@@ -311,13 +311,14 @@ function VideoDNAGenerator() {
 
     // --- Result Display Component (Handles Script and VEO Prompts) ---
     const ResultDisplay = ({ result }: { result: GenerationResult }) => {
-        const isPromptArray = Array.isArray(result.content);
+        // The isPromptArray variable is removed, we check directly in the JSX.
 
         return (
             <div className="mt-6 bg-black/20 border border-[rgba(255,255,255,0.1)] rounded-lg p-4">
                 <h3 className="font-semibold text-lg mb-4">Generated Result:</h3>
 
-                {isPromptArray ? (
+                {/* --- FIX IS HERE: We check Array.isArray() directly --- */}
+                {Array.isArray(result.content) ? (
                     // VEO Prompts Display (Editable List)
                     <div className="space-y-4">
                         {result.content.map((prompt: string, index: number) => (
@@ -327,8 +328,8 @@ function VideoDNAGenerator() {
                                     rows={4}
                                     value={prompt}
                                     onChange={(e) => {
-                                        // Handle editing of prompts
-                                        const newContent = [...result.content as string[]];
+                                        // This is now safe because we are inside the Array.isArray check
+                                        const newContent = [...result.content];
                                         newContent[index] = e.target.value;
                                         setGeneratedResult({ ...result, content: newContent });
                                     }}
