@@ -378,7 +378,7 @@ function VideoDNAGenerator() {
         <div className="w-full max-w-lg mx-auto bg-[rgba(38,38,42,0.6)] rounded-2xl border border-[rgba(255,255,255,0.1)] shadow-2xl backdrop-blur-xl overflow-hidden">
             <div className="p-6 sm:p-8">
                 <div className="flex items-center justify-between mb-8">
-                    <div className="flex items-center gap-3"><Logo /><h1 className="text-2xl font-bold text-brand-light">VideoDNA</h1></div>
+                    <div className="flex items-center gap-3"><Logo /><h1 className="text-2xl font-bold text-brand-light">Vyralize AI</h1></div>
                     <div className="text-sm text-[#8A8A8E] bg-black/20 border border-[rgba(255,255,255,0.1)] px-3 py-1 rounded-full">{isFetchingCredits ? '...' : creditBalance ?? 0} Credits</div>
                 </div>
                 <form onSubmit={handleGenerate} className="space-y-6">

@@ -14,8 +14,15 @@ const PORT = parseInt(process.env.PORT || '8080', 10);
 // CRUCIAL FIX: Bind to 0.0.0.0 to accept traffic within the Cloud Run environment
 const HOST = '0.0.0.0'; 
 
-// Middleware
-app.use(cors());
+// Middleware - Define allowed origins and other CORS options
+const corsOptions = {
+  origin: 'https://viral-video-app-ai-plexus.vercel.app', // Your Vercel frontend URL
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+
+// Apply the CORS middleware with the specified options
+app.use(cors(corsOptions));
 
 // CRITICAL: Body Parsing Middleware
 // Clerk/Svix requires the raw body. We apply JSON parsing only to other routes.
