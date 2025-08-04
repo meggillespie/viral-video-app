@@ -17,7 +17,7 @@ if (!BACKEND_API_URL) {
     console.error("CRITICAL: VITE_BACKEND_API_URL is not set. API calls will fail. Ensure this is set in your Vercel environment.");
 }
 
-const MAX_DURATION_SECONDS = 120; // 2 minutes limit for stability
+const MAX_DURATION_SECONDS = 120; // 2 mins limit for stability
 
 // --- Helper Components & Types ---
 interface GenerationResult {
