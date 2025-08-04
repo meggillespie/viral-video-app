@@ -40,8 +40,8 @@ export default function App() {
             <style>{`.segmented-control input{display:none}.segmented-control label{transition:all .2s ease-in-out}.segmented-control input:checked+label{background-color:#007BFF;color:#fff;font-weight:600;box-shadow:0 2px 4px rgba(0,0,0,.2)}`}</style>
             <div className="bg-[#111115] min-h-screen font-sans text-[#F5F5F7] relative">
                 <div className="absolute top-0 left-0 right-0 bottom-0 overflow-hidden z-0">
-                     <div className="absolute w-[1000px] h-[1000px] bg-[radial-gradient(circle_at_20%_20%,_rgba(0,123,255,0.15),_transparent_30%)] animate-[spin_20s_linear_infinite]"></div>
-                     <div className="absolute w-[1000px] h-[1000px] bg-[radial-gradient(circle_at_80%_70%,_rgba(230,0,255,0.1),_transparent_30%)] animate-[spin_20s_linear_infinite_reverse]"></div>
+                    <div className="absolute w-[1000px] h-[1000px] bg-[radial-gradient(circle_at_20%_20%,_rgba(0,123,255,0.15),_transparent_30%)] animate-[spin_20s_linear_infinite]"></div>
+                    <div className="absolute w-[1000px] h-[1000px] bg-[radial-gradient(circle_at_80%_70%,_rgba(230,0,255,0.1),_transparent_30%)] animate-[spin_20s_linear_infinite_reverse]"></div>
                 </div>
                 <header className="absolute top-0 right-0 p-6 z-20"><SignedIn><UserButton afterSignOutUrl="/" /></SignedIn></header>
                 <main className="relative z-10 flex items-center justify-center min-h-screen p-4">
@@ -146,8 +146,8 @@ function VideoDNAGenerator() {
             if (isFormatted) {
                 // 1. Convert Markdown to HTML
                 const html = textToCopy.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                                       .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                                       .replace(/(\r\n|\n|\r)/g, '<br>');
+                                        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                                        .replace(/(\r\n|\n|\r)/g, '<br>');
                 
                 // 2. Create Blobs
                 const blobHtml = new Blob([html], { type: 'text/html' });
@@ -320,7 +320,7 @@ function VideoDNAGenerator() {
                 {isPromptArray ? (
                     // VEO Prompts Display (Editable List)
                     <div className="space-y-4">
-                        {result.content.map((prompt, index) => (
+                        {result.content.map((prompt: string, index: number) => (
                             <div key={index} className="bg-black/40 p-3 rounded-md border border-white/10 flex justify-between items-start gap-3">
                                 <textarea
                                     className="w-full bg-transparent text-sm text-brand-light/80 resize-y focus:outline-none"
@@ -328,7 +328,7 @@ function VideoDNAGenerator() {
                                     value={prompt}
                                     onChange={(e) => {
                                         // Handle editing of prompts
-                                        const newContent = [...result.content];
+                                        const newContent = [...result.content as string[]];
                                         newContent[index] = e.target.value;
                                         setGeneratedResult({ ...result, content: newContent });
                                     }}
