@@ -1,12 +1,10 @@
 // File: backend/src/routes/generate.ts
 
 import { Request, Response } from 'express';
-// UPDATED: Import GenerationConfig type for type safety
 import { Part, GenerationConfig } from '@google/genai';
 import { genAI } from '../services';
 
 // --- Refined Prompts ---
-// (Prompts remain the same as the previous iteration)
 const ANALYSIS_PROMPT = `
 You are Vyralize, an expert AI system designed to deconstruct the virality of video content. Analyze the provided source video (multimodal input: visuals, audio, pacing, transcript) and extract key performance signals.
 
@@ -96,8 +94,6 @@ export const generateRoute = async (req: Request, res: Response) => {
 
         // --- Phase 1: Viral Analysis ---
         console.log('Starting Phase 1: Analysis');
-
-        // FIX: Define the generationConfig conforming to the SDK types
         const analysisConfig: GenerationConfig = {
             responseMimeType: "application/json"
         };
@@ -105,13 +101,11 @@ export const generateRoute = async (req: Request, res: Response) => {
         const analysisResponse = await genAI.models.generateContent({
             model: 'gemini-1.5-flash',
             contents: [{ role: "user", parts: [{ text: ANALYSIS_PROMPT }, videoPart] }],
-            // FIX: Pass the configuration as the 'config' property to resolve TS2353
             config: analysisConfig 
         });
 
         const analysisText = analysisResponse.text;
 
-        // FIX: Check if text is undefined to resolve TS18048 (Strict Null Check)
         if (!analysisText) {
             console.error("Analysis response was empty.");
             return res.status(500).json({ error: 'AI analysis returned an empty response (Phase 1).' });
@@ -144,7 +138,6 @@ export const generateRoute = async (req: Request, res: Response) => {
                 .replace('${OUTPUT_DETAIL}', outputDetail);
         }
 
-        // FIX: Define the generationConfig conforming to the SDK types
         const generationConfig: GenerationConfig = {
             responseMimeType: responseMimeType
         };
@@ -152,13 +145,11 @@ export const generateRoute = async (req: Request, res: Response) => {
         const generationResponse = await genAI.models.generateContent({
             model: 'gemini-1.5-flash',
             contents: [{ role: "user", parts: [{ text: generationPrompt }] }],
-            // FIX: Pass the configuration as the 'config' property to resolve TS2353
             config: generationConfig
         });
 
         const generationText = generationResponse.text;
 
-        // FIX: Check if text is undefined to resolve TS18048 (Strict Null Check)
         if (!generationText) {
             console.error("Generation response was empty.");
             return res.status(500).json({ error: 'AI generation returned an empty response (Phase 2).' });
@@ -171,7 +162,8 @@ export const generateRoute = async (req: Request, res: Response) => {
         } else {
             try {
                 const cleanGenerationText = generationText.replace(/```json|```/g, '').trim();
-                finalContent = JSON.parse(cleanGenerationText);
+                const validJsonString = `[${cleanGenerationText.replace(/\]\[/g, '],[')}]`;
+                finalContent = JSON.parse(validJsonString);
             } catch (parseError) {
                 console.error("Failed to parse generation JSON:", generationText);
                 return res.status(500).json({ error: 'Failed to generate structured VEO prompts (Phase 2).' });

@@ -48,8 +48,8 @@ export default function App() {
                     <SignedIn><VideoDNAGenerator /></SignedIn>
                     <SignedOut>
                         <div className="text-center p-16 bg-[rgba(38,38,42,0.6)] rounded-2xl border border-[rgba(255,255,255,0.1)] shadow-2xl backdrop-blur-xl">
-                            <h2 className="text-3xl font-bold mb-4">Welcome to VideoDNA</h2>
-                            <p className="text-[#8A8A8E] my-4">Please sign in to continue.</p>
+                            <h2 className="text-3xl font-bold mb-4">Welcome to Vyralize</h2>
+                            <p className="text-[#8A8A8E] my-4">Sign in to continue.</p>
                             <SignInButton mode="modal"><button className="px-6 py-2 bg-[#007BFF] text-white font-semibold rounded-lg hover:bg-[#0056b3] transition-colors">Sign In</button></SignInButton>
                         </div>
                     </SignedOut>
