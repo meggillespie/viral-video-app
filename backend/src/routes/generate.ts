@@ -69,7 +69,7 @@ Instructions:
 VEO Prompt Requirements:
 - Be highly specific and visual.
 - Describe lighting, camera angle (e.g., Close-up, Wide shot, Drone shot, POV), action, subject, setting, and mood.
-- Example style: "Cinematic shot, golden hour lighting. Wide shot of [subject] doing [action]. [Visual Style details]. Slow motion, high detail, 4k."
+- Example style: "Cinematic shot, golden hour lighting. Wide shot of [subject] with dark hair, and muscular build, wearing a black tuxedo while [action] standing on a formal dancefloor outside on a veranda. [Visual Style details]. Slow motion, high detail, 4k."
 
 Output Format:
 Return the result strictly as a JSON array of strings. Do NOT include any introductory or concluding text.

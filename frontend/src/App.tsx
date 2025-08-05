@@ -335,6 +335,7 @@ function VideoDNAGenerator() {
                                     }}
                                 />
                                 <button
+                                    type="button"
                                     onClick={() => handleCopy(prompt, false, `prompt-${index}`)}
                                     className="text-sm text-[#8A8A8E] hover:text-white transition-colors bg-white/10 p-2 rounded-md"
                                     title="Copy prompt"
@@ -352,6 +353,7 @@ function VideoDNAGenerator() {
                     <div>
                         <div className="flex justify-end mb-4">
                             <button
+                                type="button"
                                 onClick={() => handleCopy(result.content as string, true, 'script')}
                                 className="flex items-center gap-2 text-sm text-[#8A8A8E] hover:text-white transition-colors bg-white/10 px-3 py-1 rounded-md"
                             >
