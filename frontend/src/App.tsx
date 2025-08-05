@@ -407,16 +407,16 @@ function VideoDNAGenerator() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <div>
                             <label className="text-sm font-medium text-[#8A8A8E] mb-2 block">3. Output Detail</label>
-                            <div className="flex bg-black/20 border border-[rgba(255,255,255,0.1)] rounded-md p-1 segmented-control">
+                            <div className="flex h-full bg-black/20 border border-[rgba(255,255,255,0.1)] rounded-md p-1 segmented-control">
                                 <input type="radio" name="output-detail" id="detail-short" checked={outputDetail === 'Short Form'} onChange={() => setOutputDetail('Short Form')} disabled={isLoading} /><label htmlFor="detail-short" className="flex-1 text-center text-[#8A8A8E] py-2 px-4 rounded-md cursor-pointer">Short Form</label>
                                 <input type="radio" name="output-detail" id="detail-long" checked={outputDetail === 'Long Form'} onChange={() => setOutputDetail('Long Form')} disabled={isLoading} /><label htmlFor="detail-long" className="flex-1 text-center text-[#8A8A8E] py-2 px-4 rounded-md cursor-pointer">Long Form</label>
                             </div>
                         </div>
                         <div>
                             <label className="text-sm font-medium text-[#8A8A8E] mb-2 block">4. Desired Output</label>
-                            <div className="flex bg-black/20 border border-[rgba(255,255,255,0.1)] rounded-md p-1 segmented-control">
-                                <input type="radio" name="output-type" id="type-script" checked={outputType === 'Script & Analysis'} onChange={() => setOutputType('Script & Analysis')} disabled={isLoading} /><label htmlFor="type-script" className="flex-1 text-center text-[#8A8A8E] py-2 px-4 rounded-md cursor-pointer text-xs sm:text-sm">Script & Analysis</label>
-                                <input type="radio" name="output-type" id="type-prompts" checked={outputType === 'AI Video Prompts'} onChange={() => setOutputType('AI Video Prompts')} disabled={isLoading} /><label htmlFor="type-prompts" className="flex-1 text-center text-[#8A8A8E] py-2 px-4 rounded-md cursor-pointer text-xs sm:text-sm">AI Video Prompts</label>
+                            <div className="flex h-full bg-black/20 border border-[rgba(255,255,255,0.1)] rounded-md p-1 segmented-control">
+                                <input type="radio" name="output-type" id="type-script" checked={outputType === 'Script & Analysis'} onChange={() => setOutputType('Script & Analysis')} disabled={isLoading} /><label htmlFor="type-script" className="flex-1 text-center text-[#8A8A8E] py-2 px-4 rounded-md cursor-pointer text-xs sm:text-sm">Analysis & Script</label>
+                                <input type="radio" name="output-type" id="type-prompts" checked={outputType === 'AI Video Prompts'} onChange={() => setOutputType('AI Video Prompts')} disabled={isLoading} /><label htmlFor="type-prompts" className="flex-1 text-center text-[#8A8A8E] py-2 px-4 rounded-md cursor-pointer text-xs sm:text-sm">Analysis AI Prompts</label>
                             </div>
                         </div>
                     </div>
