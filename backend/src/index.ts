@@ -1,17 +1,18 @@
+// File: backend/src/index.ts (Updated File)
+
 import express from 'express';
 import cors from 'cors';
 
-// Import route handlers
-import { generateRoute } from './routes/generate';
+// Import route handlers (Updated)
+import { analyzeRoute } from './routes/analyze';
+// Import the renamed generate-content route
+import { generateContentRoute } from './routes/generate-content'; 
 import { createSignedUrlRoute, transferToGeminiRoute } from './routes/storage';
 import { getVideoDurationRoute } from './routes/video';
 import { clerkWebhookRoute } from './routes/clerk-webhook';
 
 const app = express();
-// GCR dynamically sets the PORT environment variable. We must parse it as an integer.
 const PORT = parseInt(process.env.PORT || '8080', 10);
-
-// CRUCIAL FIX: Bind to 0.0.0.0 to accept traffic within the Cloud Run environment
 const HOST = '0.0.0.0'; 
 
 // Middleware - Define allowed origins and other CORS options
@@ -24,6 +25,7 @@ const corsOptions = {
 // Apply the CORS middleware with the specified options
 app.use(cors(corsOptions));
 
+
 // CRITICAL: Body Parsing Middleware
 // Clerk/Svix requires the raw body. We apply JSON parsing only to other routes.
 app.use((req, res, next) => {
@@ -35,19 +37,19 @@ app.use((req, res, next) => {
     }
 });
 
-// Routes
-app.post('/api/generate', generateRoute);
+// Routes (Updated)
+app.post('/api/analyze', analyzeRoute);
+app.post('/api/generate-content', generateContentRoute);
 app.post('/api/create-signed-url', createSignedUrlRoute);
 app.post('/api/transfer-to-gemini', transferToGeminiRoute);
 app.post('/api/get-video-duration', getVideoDurationRoute);
 app.post('/api/clerk-webhook', clerkWebhookRoute);
 
 app.get('/', (req, res) => {
-  // Updated app name
   res.send('Vyralize Backend Service is running on Google Cloud Run.');
 });
 
-// UPDATED: Listen on the specified HOST and PORT
+// Listen
 app.listen(PORT, HOST, () => {
   console.log(`Server listening on http://${HOST}:${PORT}`);
 });
