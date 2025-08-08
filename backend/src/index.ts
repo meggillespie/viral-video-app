@@ -1,19 +1,24 @@
-// File: backend/src/index.ts (Updated File)
+// File: backend/src/index.ts 
 
 import express from 'express';
 import cors from 'cors';
+import multer from 'multer'; // Import multer
 
-// Import route handlers (Updated)
+// Import route handlers
 import { analyzeRoute } from './routes/analyze';
-// Import the renamed generate-content route
-import { generateContentRoute } from './routes/generate-content'; 
+import { generateContentRoute } from './routes/generate-content';
 import { createSignedUrlRoute, transferToGeminiRoute } from './routes/storage';
 import { getVideoDurationRoute } from './routes/video';
 import { clerkWebhookRoute } from './routes/clerk-webhook';
+import { generateImageContentRoute } from './routes/generate-image-content'; // Import the new image route
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '8080', 10);
-const HOST = '0.0.0.0'; 
+const HOST = '0.0.0.0';
+
+// Configure multer for in-memory storage (efficient for images)
+const upload = multer({ storage: multer.memoryStorage() });
+
 
 // Middleware - Define allowed origins and other CORS options
 const corsOptions = {
@@ -26,13 +31,18 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 
-// CRITICAL: Body Parsing Middleware
-// Clerk/Svix requires the raw body. We apply JSON parsing only to other routes.
+// CRITICAL: Advanced Body Parsing Middleware
+// We must selectively apply the correct parser based on the route.
 app.use((req, res, next) => {
     if (req.path === '/api/clerk-webhook') {
-        // Ensure the type is correct for the raw parser
+        // 1. Clerk Webhook requires the raw body
         express.raw({ type: 'application/json' })(req, res, next);
+    } else if (req.path === '/api/generate-image-content' && req.method === 'POST') {
+        // 2. Image generation requires multipart/form-data parsing
+        // 'sourceImage' is the field name the frontend will use
+        upload.single('sourceImage')(req, res, next);
     } else {
+        // 3. All other routes use standard JSON parsing
         express.json()(req, res, next);
     }
 });
@@ -44,6 +54,8 @@ app.post('/api/create-signed-url', createSignedUrlRoute);
 app.post('/api/transfer-to-gemini', transferToGeminiRoute);
 app.post('/api/get-video-duration', getVideoDurationRoute);
 app.post('/api/clerk-webhook', clerkWebhookRoute);
+app.post('/api/generate-image-content', generateImageContentRoute);
+
 
 app.get('/', (req, res) => {
   res.send('Vyralize Backend Service is running on Google Cloud Run.');

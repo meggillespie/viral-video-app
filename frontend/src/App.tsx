@@ -1,6 +1,7 @@
 // File: frontend/src/App.tsx
+// This is the complete, consolidated file including both Video and Image workflows.
 
-import React, { useState, useEffect, useCallback, DragEvent } from 'react';
+import React, { useState, useEffect, useCallback, DragEvent, ChangeEvent } from 'react';
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser, useAuth } from "@clerk/clerk-react";
 import { createClient } from '@supabase/supabase-js';
 
@@ -10,37 +11,63 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl || "https://example.supabase.co", supabaseAnonKey || "example-anon-key");
 
 const BACKEND_API_URL = import.meta.env.VITE_BACKEND_API_URL;
-const MAX_DURATION_SECONDS = 120; // 2 minutes limit
+const MAX_DURATION_SECONDS = 120; // 2 minutes limit for video
 
-// --- Helper Components & Types (Updated) ---
+// --- Helper Components & Types (Consolidated) ---
 
-// Define the structure of the analysis JSON based on the backend prompt
+// Video Types
 interface AnalysisResult {
     meta: { analyzed_style: string; primary_tone: string; };
     hook_analysis: { technique: string; pacing: string; emotional_trigger: string; };
     retention_signals: { pacing_strategy: string; narrative_structure: string; visual_style: string; };
     engagement_tactics: { ctas: string[]; interactive_elements: string; };
-    [key: string]: any; // Allow indexing
+    [key: string]: any;
+}
+type VideoOutputType = 'Script' | 'AI Video Prompts';
+
+// Image Types
+interface ImageGenerationResult {
+    imageUrl: string;
+    posts: { linkedin: string; twitter: string; instagram: string; };
+    headline: string | null;
 }
 
-type OutputType = 'Script' | 'AI Video Prompts';
-
-// (Spinner, Logo, CopyIcon remain the same)
+// Icons & UI Elements
 const Spinner = () => ( <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> );
 const Logo = () => ( <svg className="w-8 h-8 text-[#007BFF]" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path></svg> );
 const CopyIcon = () => ( <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path></svg> );
+// Icons for Tabs
+const VideoIcon = () => (<svg className="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 10l4.553 2.276A1 1 0 0120 13.224v2.552a1 1 0 01-.447.848L15 18.9V10zM5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>);
+const ImageIcon = () => (<svg className="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>);
 
 const MarkdownRenderer = ({ text }: { text: string }) => {
     const html = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>').replace(/(\r\n|\n|\r)/g, '<br>');
     return <div className="whitespace-pre-wrap font-mono text-sm text-brand-light/80 leading-relaxed" dangerouslySetInnerHTML={{ __html: html }} />;
 };
 
+// Shared Copy Function
+const handleCopy = async (textToCopy: string, isFormatted: boolean = false, setCopyStatus: (status: string) => void, feedbackId: string = 'global') => {
+    try {
+        if (isFormatted) {
+            const html = textToCopy.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>').replace(/(\r\n|\n|\r)/g, '<br>');
+            const blobHtml = new Blob([html], { type: 'text/html' });
+            const blobPlain = new Blob([textToCopy.replace(/\*\*|\*/g, '')], { type: 'text/plain' });
+            await navigator.clipboard.write([new ClipboardItem({ 'text/html': blobHtml, 'text/plain': blobPlain })]);
+        } else {
+            await navigator.clipboard.writeText(textToCopy);
+        }
+        setCopyStatus(feedbackId);
+        setTimeout(() => setCopyStatus(''), 2000);
+    } catch (err) {
+        console.error('Failed to copy: ', err);
+    }
+};
+
 // --- Main App Component (Wrapper) ---
 export default function App() {
-    // (App structure remains the same, using Vyralize branding colors)
+    // (App structure remains the same)
     return (
         <>
-            {/* Removed segmented control CSS as it's no longer used */}
             <div className="bg-[#111115] min-h-screen font-sans text-[#F5F5F7] relative">
                 <div className="absolute top-0 left-0 right-0 bottom-0 overflow-hidden z-0">
                      <div className="absolute w-[1000px] h-[1000px] bg-[radial-gradient(circle_at_20%_20%,_rgba(0,123,255,0.15),_transparent_30%)] animate-[spin_20s_linear_infinite]"></div>
@@ -48,7 +75,7 @@ export default function App() {
                 </div>
                 <header className="absolute top-0 right-0 p-6 z-20"><SignedIn><UserButton afterSignOutUrl="/" /></SignedIn></header>
                 <main className="relative z-10 flex items-center justify-center min-h-screen p-4">
-                    <SignedIn><VyralizeWorkflowManager /></SignedIn>
+                    <SignedIn><VyralizePlatformManager /></SignedIn>
                     <SignedOut>
                         <div className="text-center p-16 bg-[rgba(38,38,42,0.6)] rounded-2xl border border-[rgba(255,255,255,0.1)] shadow-2xl backdrop-blur-xl">
                             <h2 className="text-3xl font-bold mb-4">Welcome to Vyralize</h2>
@@ -62,26 +89,22 @@ export default function App() {
     );
 }
 
-// --- Core Workflow Manager ---
-// This component manages the overall state and transitions between the steps.
-function VyralizeWorkflowManager() {
+// ============================================================================
+// Platform Manager (Handles Tabs and Shared State)
+// ============================================================================
+
+function VyralizePlatformManager() {
     const { getToken } = useAuth();
     const { user } = useUser();
 
-    // Workflow State
-    const [step, setStep] = useState<'input' | 'analysis' | 'generation'>('input');
-    
-    // Data State (Persists across steps)
-    const [topic, setTopic] = useState('');
-    const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
-    const [generatedContent, setGeneratedContent] = useState<string | string[] | null>(null);
-    const [generatedType, setGeneratedType] = useState<OutputType | null>(null);
+    // Tab State
+    const [activeTab, setActiveTab] = useState<'video' | 'image'>('video');
 
-    // User/Credit State
+    // Shared User/Credit State
     const [creditBalance, setCreditBalance] = useState<number | null>(null);
     const [isFetchingCredits, setIsFetchingCredits] = useState(true);
 
-    // Load Credits (Remains the same)
+    // Load Credits (Centralized)
     useEffect(() => {
         const loadUserData = async () => {
             if (user && getToken) {
@@ -99,20 +122,414 @@ function VyralizeWorkflowManager() {
         loadUserData();
     }, [user, getToken]);
 
+    // Centralized credit update function passed down to workflow managers
+    const updateCredits = useCallback(() => {
+        setCreditBalance(prev => (prev ? prev - 1 : 0));
+    }, []);
+
+    // Determine the container size based on the active tab
+    // Image Studio requires a wider view for the 2-column layout
+    const containerWidthClass = activeTab === 'image' ? 'max-w-6xl' : 'max-w-2xl';
+
+    return (
+        // Container width is now dynamic
+        <div className={`w-full ${containerWidthClass} mx-auto bg-[rgba(38,38,42,0.6)] rounded-2xl border border-[rgba(255,255,255,0.1)] shadow-2xl backdrop-blur-xl overflow-hidden transition-all duration-500`}>
+            <div className="p-6 sm:p-8">
+                <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-3"><Logo /><h1 className="text-2xl font-bold text-brand-light">Vyralize</h1></div>
+                    <div className="text-sm text-[#8A8A8E] bg-black/20 border border-[rgba(255,255,255,0.1)] px-3 py-1 rounded-full">{isFetchingCredits ? '...' : creditBalance ?? 0} Credits</div>
+                </div>
+                
+                {/* Tab Navigation */}
+                <div className="mb-8 border-b border-gray-700">
+                    <nav className="-mb-px flex space-x-6" aria-label="Tabs">
+                        <button
+                            onClick={() => setActiveTab('video')}
+                            // Using Blue accent for Video tab
+                            className={`flex items-center whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                                activeTab === 'video'
+                                    ? 'border-[#007BFF] text-[#007BFF]'
+                                    : 'border-transparent text-gray-400 hover:text-gray-200 hover:border-gray-600'
+                            }`}
+                        >
+                            <VideoIcon />
+                            Video Analysis
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('image')}
+                            // Using Purple accent for Image tab
+                            className={`flex items-center whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                                activeTab === 'image'
+                                    ? 'border-[#E600FF] text-[#E600FF]' 
+                                    : 'border-transparent text-gray-400 hover:text-gray-200 hover:border-gray-600'
+                            }`}
+                        >
+                            <ImageIcon />
+                            Image Generator
+                        </button>
+                    </nav>
+                </div>
+
+                {/* Tab Content */}
+                {activeTab === 'video' && (
+                    <VideoWorkflowManager 
+                        creditBalance={creditBalance ?? 0}
+                        isFetchingCredits={isFetchingCredits}
+                        updateCredits={updateCredits}
+                        getToken={getToken}
+                    />
+                )}
+                {activeTab === 'image' && (
+                    <ImageWorkflowManager
+                        creditBalance={creditBalance ?? 0}
+                        isFetchingCredits={isFetchingCredits}
+                        updateCredits={updateCredits}
+                        getToken={getToken}
+                    />
+                )}
+
+            </div>
+        </div>
+    );
+}
+
+
+// ============================================================================
+// Shared Workflow Props Interface
+// ============================================================================
+interface WorkflowManagerProps {
+    creditBalance: number;
+    isFetchingCredits: boolean;
+    updateCredits: () => void;
+    getToken: Function;
+}
+
+// ============================================================================
+// Image Workflow Manager (New Feature Implementation)
+// ============================================================================
+
+function ImageWorkflowManager({ creditBalance, isFetchingCredits, updateCredits, getToken }: WorkflowManagerProps) {
+    // Input State
+    const [sourceImage, setSourceImage] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [topic, setTopic] = useState('');
+    const [details, setDetails] = useState('');
+    const [styleInfluence, setStyleInfluence] = useState(50);
+    const [withTextOverlay, setWithTextOverlay] = useState(true);
+
+    // Output State
+    const [generatedResult, setGeneratedResult] = useState<ImageGenerationResult | null>(null);
+
+    // Loading/Error State
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState('');
+
+    const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file && file.type.startsWith('image/')) {
+            setSourceImage(file);
+            // Create a preview URL
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setImagePreview(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+            setGeneratedResult(null); // Reset results when input changes
+            setError('');
+        } else {
+            setError('Please upload a valid image file.');
+        }
+    };
+
+    const handleGenerate = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+
+        if (!BACKEND_API_URL) { setError("Configuration error."); return; }
+        if (creditBalance <= 0) { setError("You have no credits left."); return; }
+        if (!topic) { setError("Please enter a topic."); return; }
+        if (!sourceImage) { setError("Please upload a source image."); return; }
+
+        setIsLoading(true);
+        setGeneratedResult(null);
+
+        try {
+            // Prepare the multipart/form-data payload
+            const formData = new FormData();
+            // 'sourceImage' must match the multer configuration in index.ts
+            formData.append('sourceImage', sourceImage); 
+            formData.append('topic', topic);
+            formData.append('details', details);
+            formData.append('styleInfluence', styleInfluence.toString());
+            formData.append('withTextOverlay', withTextOverlay.toString());
+
+            // Call the backend endpoint
+            const response = await fetch(`${BACKEND_API_URL}/api/generate-image-content`, {
+                method: 'POST',
+                body: formData, // Do not set Content-Type header, the browser handles it for FormData
+            });
+
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({ error: 'Unknown server error' }));
+                throw new Error(errData.error || 'Image generation failed.');
+            }
+
+            const data = await response.json();
+            if (!data.result) {
+                throw new Error("Received unexpected format from the API.");
+            }
+
+            // --- Credit Deduction (Crucial: Happens only on successful generation) ---
+            const token = await getToken({ template: 'supabase' });
+            if (!token) throw new Error("Could not get token to decrement credits.");
+            const { error: decrementError } = await supabase.functions.invoke('decrement-credits', { headers: { Authorization: `Bearer ${token}` } });
+            
+            if (decrementError) {
+                console.error("Credit decrement failed, but generation succeeded.", decrementError);
+            } else {
+                updateCredits();
+            }
+
+            setGeneratedResult(data.result);
+
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleReset = () => {
+        setSourceImage(null);
+        setImagePreview(null);
+        setTopic('');
+        setDetails('');
+        setStyleInfluence(50);
+        setWithTextOverlay(true);
+        setGeneratedResult(null);
+        setError('');
+    };
+
+    // Image Workflow UI (2 Column Layout)
+    return (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Left Panel: Input Form */}
+            <form onSubmit={handleGenerate} className="space-y-6">
+                <h2 className="text-xl font-semibold text-white">Configure Generation</h2>
+                
+                {/* 1. Image Uploader */}
+                <div>
+                    <label className="text-sm font-medium text-[#8A8A8E] mb-2 block">1. Upload Source Image</label>
+                    {/* Using the Purple accent (#E600FF) for hover effects */}
+                    <div className="bg-black/30 border-2 border-dashed border-brand-gray/40 rounded-lg p-6 text-center cursor-pointer hover:border-[#E600FF] transition-colors group relative h-48 flex items-center justify-center">
+                        <input type="file" id="imageFile" onChange={handleImageChange} accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-0" disabled={isLoading} />
+                        {imagePreview ? (
+                            <img src={imagePreview} alt="Preview" className="max-h-full max-w-full object-contain"/>
+                        ) : (
+                            <div className="relative z-10 pointer-events-none flex flex-col items-center">
+                                <ImageIcon />
+                                <p className="mt-2 text-sm text-[#8A8A8E]">Click or Drag & Drop</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* 2. Topic */}
+                <div>
+                    <label htmlFor="image-topic" className="text-sm font-medium text-[#8A8A8E] mb-2 block">2. New Content Topic</label>
+                    {/* Using the Purple accent (#E600FF) for focus rings */}
+                    <input id="image-topic" type="text" value={topic} onChange={e => setTopic(e.target.value)} className="w-full bg-black/20 border border-[rgba(255,255,255,0.1)] rounded-md px-4 py-2.5 text-brand-light placeholder-[#8A8A8E] focus:ring-2 focus:ring-[#E600FF] focus:outline-none" placeholder="e.g., 'AI in Healthcare'" disabled={isLoading} />
+                </div>
+
+                {/* 3. Details */}
+                 <div>
+                    <label htmlFor="image-details" className="text-sm font-medium text-[#8A8A8E] mb-2 block">3. Details (Optional)</label>
+                    <textarea id="image-details" rows={3} value={details} onChange={e => setDetails(e.target.value)} className="w-full bg-black/20 border border-[rgba(255,255,255,0.1)] rounded-md px-4 py-2.5 text-brand-light placeholder-[#8A8A8E] focus:ring-2 focus:ring-[#E600FF] focus:outline-none" placeholder="e.g., Recent breakthroughs in diagnostics" disabled={isLoading} />
+                </div>
+
+                {/* 4. Style Influence Slider */}
+                <div>
+                    <label htmlFor="style-influence" className="flex justify-between items-center text-sm font-medium text-[#8A8A8E] mb-2">
+                        <span>4. Style Influence</span>
+                        {/* Using Purple accent for the slider value */}
+                        <span className="text-[#E600FF] font-semibold">{styleInfluence}%</span>
+                    </label>
+                    <input
+                        id="style-influence"
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={styleInfluence}
+                        onChange={(e) => setStyleInfluence(Number(e.target.value))}
+                        // Tailwind utility classes for styling the slider thumb (accent color)
+                        className="w-full h-2 bg-black/30 rounded-lg appearance-none cursor-pointer range-lg accent-[#E600FF]"
+                        disabled={isLoading}
+                    />
+                </div>
+
+                {/* 5. Text Overlay Toggle */}
+                <div className="flex items-center justify-between bg-black/30 p-3 rounded-lg border border-[rgba(255,255,255,0.1)]">
+                    <span className="text-sm font-medium text-[#8A8A8E]">5. Generate Text Overlay Headline?</span>
+                    <label htmlFor="text-overlay-toggle" className="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="text-overlay-toggle" className="sr-only peer" checked={withTextOverlay} onChange={() => setWithTextOverlay(!withTextOverlay)} disabled={isLoading} />
+                        {/* Tailwind utility classes for the toggle switch styling */}
+                        <div className="w-11 h-6 bg-gray-700 rounded-full peer peer-focus:ring-4 peer-focus:ring-[#E600FF]/50 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#E600FF]"></div>
+                    </label>
+                </div>
+
+                {/* Generate Button (Using Purple Accent) */}
+                <div className="pt-4">
+                    <button type="submit" disabled={isLoading || isFetchingCredits} 
+                        // Using the Purple accent for the primary action in this tab
+                        className="w-full px-6 py-3 font-bold text-white bg-[#E600FF] rounded-lg hover:bg-[#b300c7] transition-all duration-300 shadow-lg hover:shadow-[0_0_20px_0_rgba(230,0,255,0.3)] focus:outline-none focus:ring-4 focus:ring-[#E600FF]/50 disabled:bg-[#b300c7]/50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center">
+                        {isLoading ? <Spinner /> : null}
+                        {isLoading ? 'Generating...' : 'Generate (1 Credit)'}
+                    </button>
+                </div>
+            </form>
+
+            {/* Right Panel: Results Display */}
+            <div className="flex flex-col h-full">
+                <h2 className="text-xl font-semibold text-white mb-6">Output</h2>
+                <div className="bg-black/20 border border-[rgba(255,255,255,0.1)] rounded-lg p-6 flex-grow flex items-center justify-center">
+                    {isLoading && (
+                         <div className="text-center">
+                            {/* Spinner colored purple for this tab */}
+                            <div className="w-12 h-12 border-4 border-gray-700 border-t-[#E600FF] rounded-full animate-spin mx-auto"></div>
+                            <p className="text-gray-400 mt-2">Generating image and posts...</p>
+                        </div>
+                    )}
+                    {error && !isLoading && (
+                        <div className="bg-red-500/20 border border-red-500/30 text-red-300 px-4 py-3 rounded-lg text-sm w-full" role="alert"><strong className="font-bold">Error: </strong><span>{error}</span></div>
+                    )}
+                    {!isLoading && !error && !generatedResult && (
+                        <div className="text-center text-gray-500 flex flex-col items-center">
+                            <ImageIcon />
+                            <h3 className="text-lg font-semibold mt-2">Your creation will appear here</h3>
+                        </div>
+                    )}
+                    {generatedResult && !isLoading && !error && (
+                        <ImageGenerationOutput result={generatedResult} onReset={handleReset} />
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ============================================================================
+// Image Generation Output (New Component)
+// ============================================================================
+
+interface ImageGenerationOutputProps {
+    result: ImageGenerationResult;
+    onReset: () => void;
+}
+
+function ImageGenerationOutput({ result, onReset }: ImageGenerationOutputProps) {
+    const [copyStatus, setCopyStatus] = useState('');
+
+    // Helper to render social posts cleanly
+    const renderPost = (platform: string, content: string) => (
+        <div className="bg-black/40 p-4 rounded-lg border border-[rgba(255,255,255,0.1)]">
+            <div className="flex justify-between items-center mb-3">
+                <h4 className="font-semibold text-white">{platform}</h4>
+                <button
+                    // Use the shared handleCopy function
+                    onClick={() => handleCopy(content, false, setCopyStatus, platform)}
+                    className="text-sm text-[#8A8A8E] hover:text-white transition-colors bg-white/10 p-2 rounded-md"
+                >
+                    {copyStatus === platform ? 'Copied!' : <CopyIcon />}
+                </button>
+            </div>
+            <p className="text-sm text-[#F5F5F7]/80 whitespace-pre-wrap">{content}</p>
+        </div>
+    );
+
+    // Function to handle image download (using the Data URL)
+    const downloadImage = () => {
+        const link = document.createElement('a');
+        link.href = result.imageUrl;
+        link.download = `vyralize-generated-image.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    return (
+        <div className="space-y-6 w-full">
+            {/* Image Display */}
+            <div className="relative group">
+                <img src={result.imageUrl} alt="Generated Content" className="w-full rounded-lg shadow-xl"/>
+                
+                {/* Optional Headline Overlay (For visual representation) */}
+                {result.headline && (
+                    <div className="absolute inset-0 flex items-center justify-center p-4 bg-black/50 rounded-lg">
+                        {/* Simple text shadow styling added for readability */}
+                        <p className="text-white text-2xl lg:text-3xl font-bold text-center" style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.8)' }}>{result.headline}</p>
+                    </div>
+                )}
+
+                {/* Download Button (Appears on hover) */}
+                <button 
+                    onClick={downloadImage}
+                    // Uses the Purple accent
+                    className="absolute top-2 right-2 bg-[#E600FF] text-white p-2 rounded-md opacity-0 group-hover:opacity-100 transition-opacity shadow-md hover:bg-[#b300c7]"
+                    title="Download Image"
+                >
+                    <svg className="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                </button>
+            </div>
+
+            {/* Social Posts */}
+            <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-white">Social Media Posts</h3>
+                {renderPost("LinkedIn", result.posts.linkedin)}
+                {renderPost("Twitter (X)", result.posts.twitter)}
+                {renderPost("Instagram", result.posts.instagram)}
+            </div>
+
+            <button
+                onClick={onReset}
+                className="w-full px-6 py-3 font-bold text-white bg-gray-600 rounded-lg hover:bg-gray-700 transition-all duration-300 mt-4"
+            >
+                Start New Generation (1 Credit)
+            </button>
+        </div>
+    );
+}
+
+
+// ============================================================================
+// Video Workflow Manager (Previously VyralizeWorkflowManager)
+// ============================================================================
+
+// This section manages the existing Video DNA functionality. 
+// The structure is identical to the previous implementation, 
+// adapted to fit within the new tabbed structure.
+
+function VideoWorkflowManager({ creditBalance, isFetchingCredits, updateCredits, getToken }: WorkflowManagerProps) {
+    // Workflow State
+    const [step, setStep] = useState<'input' | 'analysis' | 'generation'>('input');
+    
+    // Data State (Persists across steps)
+    const [topic, setTopic] = useState('');
+    const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+    const [generatedContent, setGeneratedContent] = useState<string | string[] | null>(null);
+    const [generatedType, setGeneratedType] = useState<VideoOutputType | null>(null);
+
     // --- Callbacks for State Transitions ---
 
     // Called when analysis is successful
     const handleAnalysisComplete = useCallback((result: AnalysisResult, newTopic: string) => {
         setAnalysisResult(result);
         setTopic(newTopic);
-        // Credit deduction is handled within the InputForm upon successful analysis API call,
-        // but we must update the balance here in the parent component.
-        setCreditBalance(prev => (prev ? prev - 1 : 0)); 
+        // Credit deduction is handled in the InputForm, which calls updateCredits.
         setStep('analysis');
     }, []);
 
     // Called when generation is successful
-    const handleGenerationComplete = useCallback((content: string | string[], type: OutputType) => {
+    const handleGenerationComplete = useCallback((content: string | string[], type: VideoOutputType) => {
         setGeneratedContent(content);
         setGeneratedType(type);
         setStep('generation');
@@ -132,17 +549,17 @@ function VyralizeWorkflowManager() {
         switch (step) {
             case 'input':
                 return (
-                    <InputForm 
+                    <VideoInputForm 
                         onAnalysisComplete={handleAnalysisComplete} 
-                        creditBalance={creditBalance ?? 0}
+                        creditBalance={creditBalance}
                         isFetchingCredits={isFetchingCredits}
-                        // Pass getToken to InputForm for credit deduction authorization
                         getToken={getToken}
+                        updateCredits={updateCredits}
                     />
                 );
             case 'analysis':
                 return (
-                    <AnalysisDisplay 
+                    <VideoAnalysisDisplay 
                         analysis={analysisResult!} 
                         topic={topic}
                         onGenerationComplete={handleGenerationComplete}
@@ -150,7 +567,7 @@ function VyralizeWorkflowManager() {
                 );
             case 'generation':
                 return (
-                    <GenerationOutput
+                    <VideoGenerationOutput
                         content={generatedContent!}
                         type={generatedType!}
                         onReset={handleReset}
@@ -159,46 +576,33 @@ function VyralizeWorkflowManager() {
         }
     };
 
-    // Main container UI (Keeps the Vyralize styling)
-    // Increased max-w-2xl to better accommodate the analysis display inspired by the example app
-    return (
-        <div className="w-full max-w-2xl mx-auto bg-[rgba(38,38,42,0.6)] rounded-2xl border border-[rgba(255,255,255,0.1)] shadow-2xl backdrop-blur-xl overflow-hidden">
-            <div className="p-6 sm:p-8">
-                <div className="flex items-center justify-between mb-8">
-                    <div className="flex items-center gap-3"><Logo /><h1 className="text-2xl font-bold text-brand-light">Vyralize</h1></div>
-                    <div className="text-sm text-[#8A8A8E] bg-black/20 border border-[rgba(255,255,255,0.1)] px-3 py-1 rounded-full">{isFetchingCredits ? '...' : creditBalance ?? 0} Credits</div>
-                </div>
-                
-                {renderStep()}
-
-            </div>
-        </div>
-    );
+    return <>{renderStep()}</>;
 }
 
 // ============================================================================
-// STEP 1: Input Form Component
+// Video Workflow Components (InputForm, AnalysisDisplay, GenerationOutput)
 // ============================================================================
-interface InputFormProps {
+// These components are identical to the implementation in the previous turn.
+
+interface VideoInputFormProps {
     onAnalysisComplete: (result: AnalysisResult, newTopic: string) => void;
     creditBalance: number;
     isFetchingCredits: boolean;
     getToken: Function;
+    updateCredits: () => void;
 }
 
-function InputForm({ onAnalysisComplete, creditBalance, isFetchingCredits, getToken }: InputFormProps) {
-    // Input State (Managed locally)
+function VideoInputForm({ onAnalysisComplete, creditBalance, isFetchingCredits, getToken, updateCredits }: VideoInputFormProps) {
+    // (State definitions remain the same)
     const [videoSource, setVideoSource] = useState('');
     const [topic, setTopic] = useState('');
     const [videoFile, setVideoFile] = useState<File | null>(null);
-    
-    // Loading/Error State (Managed locally)
     const [isLoading, setIsLoading] = useState(false);
     const [statusMessage, setStatusMessage] = useState('');
     const [error, setError] = useState('');
     const [isDragging, setIsDragging] = useState(false);
 
-    // File Handling Logic (Remains the same)
+    // (File Handling Logic - checkFileDuration, handleFileChange, handleDrop, etc. - remains the same)
     const checkFileDuration = (file: File): Promise<void> => {
         return new Promise((resolve, reject) => {
             const video = document.createElement('video');
@@ -242,7 +646,7 @@ function InputForm({ onAnalysisComplete, creditBalance, isFetchingCredits, getTo
         e.preventDefault();
         setError(''); setStatusMessage('');
 
-        // (Validation checks remain the same)
+        // (Validation checks)
         if (!BACKEND_API_URL) { setError("Configuration error."); return; }
         if (creditBalance <= 0) { setError("You have no credits left."); return; }
         if (!topic) { setError("Please enter a topic."); return; }
@@ -254,7 +658,7 @@ function InputForm({ onAnalysisComplete, creditBalance, isFetchingCredits, getTo
             let finalFileUri = '';
             let finalMimeType = '';
 
-            // --- Video Upload/Validation (Same logic as before, calling GCR backend) ---
+            // --- Video Upload/Validation ---
             if (videoFile) {
                 // Flow A: Signed URL Upload & Transfer
                 setStatusMessage('Authorizing secure upload...');
@@ -304,7 +708,7 @@ function InputForm({ onAnalysisComplete, creditBalance, isFetchingCredits, getTo
                 finalMimeType = 'video/youtube';
             }
 
-            // --- NEW: Call the Analyze Endpoint ---
+            // --- Call the Analyze Endpoint ---
             setStatusMessage('Analyzing Viral DNA...');
             const response = await fetch(`${BACKEND_API_URL}/api/analyze`, {
                 method: 'POST',
@@ -322,14 +726,15 @@ function InputForm({ onAnalysisComplete, creditBalance, isFetchingCredits, getTo
                 throw new Error("Received unexpected format from the analysis API.");
             }
 
-            // --- Credit Deduction (Crucial: Happens only on successful analysis) ---
-            const token = await getToken({ template: 'supabase' });
-            if (!token) throw new Error("Could not get token to decrement credits.");
-            const { error: decrementError } = await supabase.functions.invoke('decrement-credits', { headers: { Authorization: `Bearer ${token}` } });
+            // --- Credit Deduction ---
+            const authToken = await getToken({ template: 'supabase' });
+            if (!authToken) throw new Error("Could not get token to decrement credits.");
+            const { error: decrementError } = await supabase.functions.invoke('decrement-credits', { headers: { Authorization: `Bearer ${authToken}` } });
             
             if (decrementError) {
                 console.error("Credit decrement failed, but analysis succeeded.", decrementError);
-                // We proceed anyway as the core task (analysis) was successful
+            } else {
+                updateCredits();
             }
 
             // Transition to the next step
@@ -344,11 +749,11 @@ function InputForm({ onAnalysisComplete, creditBalance, isFetchingCredits, getTo
         }
     };
 
-    // Input Form UI (Keeps the Vyralize styling, removes segmented controls)
-    // If loading, show a loader overlay
+    // Loading Overlay
     if (isLoading) {
         return (
             <div className="flex flex-col items-center justify-center gap-4 p-8 text-center">
+                {/* Spinner colored blue for this tab */}
                 <div className="w-12 h-12 border-4 border-gray-700 border-t-[#007BFF] rounded-full animate-spin"></div>
                 <p className="text-gray-300 font-semibold">{statusMessage || "Processing..."}</p>
             </div>
@@ -381,6 +786,7 @@ function InputForm({ onAnalysisComplete, creditBalance, isFetchingCredits, getTo
             </div>
             
             <div className="pt-4">
+                {/* Button uses the primary blue color */}
                 <button type="submit" disabled={isLoading || isFetchingCredits} className="w-full px-6 py-3 font-bold text-white bg-[#007BFF] rounded-lg hover:bg-[#0056b3] transition-all duration-300 shadow-lg hover:shadow-[0_0_20px_0_rgba(0,123,255,0.3)] focus:outline-none focus:ring-4 focus:ring-brand-blue/50 disabled:bg-[#0056b3]/50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center">
                     Analyze Video (1 Credit)
                 </button>
@@ -389,21 +795,19 @@ function InputForm({ onAnalysisComplete, creditBalance, isFetchingCredits, getTo
     );
 }
 
-// ============================================================================
-// STEP 2: Analysis Display Component
-// ============================================================================
-interface AnalysisDisplayProps {
+interface VideoAnalysisDisplayProps {
     analysis: AnalysisResult;
     topic: string;
-    onGenerationComplete: (content: string | string[], type: OutputType) => void;
+    onGenerationComplete: (content: string | string[], type: VideoOutputType) => void;
 }
 
-function AnalysisDisplay({ analysis, topic, onGenerationComplete }: AnalysisDisplayProps) {
+function VideoAnalysisDisplay({ analysis, topic, onGenerationComplete }: VideoAnalysisDisplayProps) {
+    // (State and logic remains the same as previous implementation)
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
-    const [loadingType, setLoadingType] = useState<OutputType | null>(null);
+    const [loadingType, setLoadingType] = useState<VideoOutputType | null>(null);
 
-    const handleGenerate = async (type: OutputType) => {
+    const handleGenerate = async (type: VideoOutputType) => {
         setIsLoading(true);
         setLoadingType(type);
         setError('');
@@ -422,7 +826,7 @@ function AnalysisDisplay({ analysis, topic, onGenerationComplete }: AnalysisDisp
                 body: JSON.stringify({ 
                     topic: topic,
                     outputType: type,
-                    analysis: analysis // Pass the analysis JSON
+                    analysis: analysis
                 }),
             });
 
@@ -447,7 +851,7 @@ function AnalysisDisplay({ analysis, topic, onGenerationComplete }: AnalysisDisp
         }
     };
 
-    // Helper to render analysis sections cleanly (Adapted to Vyralize style)
+    // Helper to render analysis sections cleanly
     const renderAnalysisSection = (title: string, content: React.ReactNode) => (
         <div className="bg-black/30 p-4 rounded-lg border border-[rgba(255,255,255,0.1)]">
             <h4 className="font-semibold text-[#007BFF] mb-2">{title}</h4>
@@ -491,6 +895,7 @@ function AnalysisDisplay({ analysis, topic, onGenerationComplete }: AnalysisDisp
                 <button 
                     onClick={() => handleGenerate('Script')} 
                     disabled={isLoading}
+                    // Primary Blue Button
                     className="flex-1 px-6 py-3 font-bold text-white bg-[#007BFF] rounded-lg hover:bg-[#0056b3] transition-all duration-300 shadow-lg hover:shadow-[0_0_20px_0_rgba(0,123,255,0.3)] disabled:bg-[#0056b3]/50 flex items-center justify-center"
                 >
                     {isLoading && loadingType === 'Script' ? <Spinner /> : null}
@@ -499,7 +904,7 @@ function AnalysisDisplay({ analysis, topic, onGenerationComplete }: AnalysisDisp
                 <button 
                     onClick={() => handleGenerate('AI Video Prompts')} 
                     disabled={isLoading}
-                    // Using the pink/purple hue from the background gradient for the secondary action
+                    // Secondary Purple Button
                     className="flex-1 px-6 py-3 font-bold text-white bg-[#E600FF] rounded-lg hover:bg-[#b300c7] transition-all duration-300 shadow-lg hover:shadow-[0_0_20px_0_rgba(230,0,255,0.3)] disabled:bg-[#b300c7]/50 flex items-center justify-center"
                 >
                     {isLoading && loadingType === 'AI Video Prompts' ? <Spinner /> : null}
@@ -510,36 +915,15 @@ function AnalysisDisplay({ analysis, topic, onGenerationComplete }: AnalysisDisp
     );
 }
 
-// ============================================================================
-// STEP 3: Generation Output Component
-// ============================================================================
-interface GenerationOutputProps {
+interface VideoGenerationOutputProps {
     content: string | string[];
-    type: OutputType;
+    type: VideoOutputType;
     onReset: () => void;
 }
 
-function GenerationOutput({ content, type, onReset }: GenerationOutputProps) {
+function VideoGenerationOutput({ content, type, onReset }: VideoGenerationOutputProps) {
     const [copyStatus, setCopyStatus] = useState('');
-
-    // Copy Functionality (Remains the same)
-    const handleCopy = async (textToCopy: string, isFormatted: boolean = false, feedbackId: string = 'global') => {
-        try {
-            if (isFormatted) {
-                const html = textToCopy.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>').replace(/(\r\n|\n|\r)/g, '<br>');
-                const blobHtml = new Blob([html], { type: 'text/html' });
-                const blobPlain = new Blob([textToCopy.replace(/\*\*|\*/g, '')], { type: 'text/plain' });
-                await navigator.clipboard.write([new ClipboardItem({ 'text/html': blobHtml, 'text/plain': blobPlain })]);
-            } else {
-                await navigator.clipboard.writeText(textToCopy);
-            }
-            setCopyStatus(feedbackId);
-            setTimeout(() => setCopyStatus(''), 2000);
-        } catch (err) {
-            console.error('Failed to copy: ', err);
-        }
-    };
-
+    
     const isPromptArray = Array.isArray(content);
 
     // Generation Output UI
@@ -557,10 +941,10 @@ function GenerationOutput({ content, type, onReset }: GenerationOutputProps) {
                                     className="w-full bg-transparent text-sm text-brand-light/80 resize-y focus:outline-none"
                                     rows={3}
                                     value={prompt}
-                                    readOnly // Keeping read-only for simplicity, can be made editable if needed
+                                    readOnly
                                 />
                                 <button
-                                    onClick={() => handleCopy(prompt, false, `prompt-${index}`)}
+                                    onClick={() => handleCopy(prompt, false, setCopyStatus, `prompt-${index}`)}
                                     className="text-sm text-[#8A8A8E] hover:text-white transition-colors bg-white/10 p-2 rounded-md"
                                     title="Copy prompt"
                                 >
@@ -568,7 +952,6 @@ function GenerationOutput({ content, type, onReset }: GenerationOutputProps) {
                                 </button>
                             </div>
                         ))}
-                        {/* Phase 5 Feature Placeholder */}
                         <button className="w-full mt-4 px-4 py-2 bg-gray-500/50 text-gray-300 rounded-lg font-semibold cursor-not-allowed" disabled>
                             Send to Google VEO (Coming Soon)
                         </button>
@@ -578,7 +961,7 @@ function GenerationOutput({ content, type, onReset }: GenerationOutputProps) {
                     <div>
                         <div className="flex justify-end mb-4">
                             <button
-                                onClick={() => handleCopy(content, true, 'script')}
+                                onClick={() => handleCopy(content, true, setCopyStatus, 'script')}
                                 className="flex items-center gap-2 text-sm text-[#8A8A8E] hover:text-white transition-colors bg-white/10 px-3 py-1 rounded-md"
                             >
                                 <CopyIcon /> {copyStatus === 'script' ? 'Copied!' : 'Copy Script'}
