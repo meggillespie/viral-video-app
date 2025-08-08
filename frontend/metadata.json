@@ -1,6 +1,6 @@
 {
-  "name": "Viral Video Script Generator",
-  "description": "Generate a viral video script on any topic, inspired by the style and structure of an existing video.",
+  "name": "Vyralize Content Automation",
+  "description": "Generate a video script, AI Video prompts, or posts on any topic, inspired by the style and structure of an existing content.",
   "requestFramePermissions": [],
   "prompt": ""
 }
