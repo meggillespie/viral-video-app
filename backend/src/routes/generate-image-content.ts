@@ -1,8 +1,12 @@
-// File: backend/src/routes/generate-image-content.ts 
+// File: backend/src/routes/generate-image-content.ts
 
 import { Request, Response } from 'express';
 import { genAI } from '../services';
 import { GenerationConfig, Type, Schema } from '@google/genai';
+
+// Define the specific model version for Vertex AI compatibility
+const GEMINI_MODEL = 'gemini-2.5-flash';
+const IMAGEN_MODEL = 'imagen-3.0-generate-002';
 
 // Define the schema for the social posts generation (for JSON mode)
 const socialPostsSchema: Schema = {
@@ -31,7 +35,7 @@ const analyzeImageStyle = async (imageBuffer: Buffer, mimeType: string): Promise
     const imagePart = {
         inlineData: { data: imageBuffer.toString('base64'), mimeType: mimeType },
     };
-    
+
     const prompt = `Analyze the provided image's visual style. Provide a concise, comma-separated list of keywords describing its core attributes. Focus on:
 -   **Aesthetic & Mood**: (e.g., minimalist, corporate, vintage, playful)
 -   **Color Palette**: (e.g., vibrant, pastel, monochrome)
@@ -39,12 +43,12 @@ const analyzeImageStyle = async (imageBuffer: Buffer, mimeType: string): Promise
 
 Example output: "minimalist, professional, blue and white color palette, centered composition, clean lines"
 Provide only the keyword list.`;
-    
+
     const response = await genAI.models.generateContent({
-        model: 'gemini-1.5-flash',
+        model: GEMINI_MODEL, // UPDATED
         contents: { parts: [imagePart, { text: prompt }] },
     });
-    
+
     return response.text?.trim() || "";
 };
 
@@ -58,7 +62,7 @@ Details: "${details || 'None'}"
 Provide only the headline text.`;
 
     const response = await genAI.models.generateContent({
-        model: 'gemini-1.5-flash',
+        model: GEMINI_MODEL, // UPDATED
         contents: prompt,
     });
 
@@ -79,7 +83,7 @@ Details: "${details || 'None'}"`;
     };
 
     const response = await genAI.models.generateContent({
-        model: 'gemini-1.5-flash',
+        model: GEMINI_MODEL, // UPDATED
         contents: prompt,
         config: config,
     });
@@ -121,16 +125,16 @@ Output ONLY the final prompt paragraph, and nothing else.`;
 
     // Step 4a: Generate the optimized prompt using Gemini
     const promptGenResponse = await genAI.models.generateContent({
-        model: 'gemini-1.5-flash',
+        model: GEMINI_MODEL, // UPDATED
         contents: masterPromptForGemini,
     });
-    
+
     const finalImagePrompt = promptGenResponse.text?.trim();
     if (!finalImagePrompt) throw new Error("Failed to generate optimized image prompt.");
 
     // Step 4b: Generate the image using Imagen
     const imageGenResponse = await genAI.models.generateImages({
-        model: 'imagen-3.0-generate-002',
+        model: IMAGEN_MODEL,
         prompt: finalImagePrompt,
         config: {
           numberOfImages: 1,
@@ -178,15 +182,15 @@ export const generateImageContentRoute = async (req: Request, res: Response) => 
         // Execute the pipeline concurrently where possible
         const styleDescriptionPromise = analyzeImageStyle(sourceImage.buffer, sourceImage.mimetype);
         const postsPromise = generateSocialPosts(topic, details);
-        
+
         // Headline depends on user choice
-        const headlinePromise = includeText 
+        const headlinePromise = includeText
             ? generateImageHeadline(topic, details)
             : Promise.resolve(null);
 
         // Wait for style analysis before starting image generation
         const styleDescription = await styleDescriptionPromise;
-        
+
         // Start image generation (depends on style analysis)
         const imagePromise = generateNewImage(styleDescription, topic, details, influence);
 
@@ -203,7 +207,8 @@ export const generateImageContentRoute = async (req: Request, res: Response) => 
         });
 
     } catch (error: any) {
-        console.error('--- FATAL ERROR in /api/generate-image-content ---', error.message);
+        // UPDATED: Log the entire error object for better debugging
+        console.error('--- FATAL ERROR in /api/generate-image-content ---', error);
         return res.status(500).json({ error: error.message || 'An internal server error occurred during image content generation.' });
     }
 };

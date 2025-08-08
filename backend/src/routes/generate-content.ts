@@ -4,6 +4,9 @@ import { Request, Response } from 'express';
 import { GenerationConfig } from '@google/genai';
 import { genAI } from '../services';
 
+// Define the specific model version for Vertex AI compatibility
+const GEMINI_MODEL = 'gemini-2.5-flash';
+
 // Updated prompts focusing only on Short Form
 const SCRIPT_GENERATION_TEMPLATE = `
 You are an expert video scriptwriter specializing in short-form, vertical content (TikTok, Reels, Shorts). Use the provided viral analysis blueprint to write a new video script.
@@ -79,7 +82,8 @@ export const generateContentRoute = async (req: Request, res: Response) => {
         };
 
         const generationResponse = await genAI.models.generateContent({
-            model: 'gemini-1.5-flash',
+            // UPDATED: Use the specific versioned model name
+            model: GEMINI_MODEL,
             contents: [{ role: "user", parts: [{ text: generationPrompt }] }],
             config: generationConfig
         });
@@ -111,7 +115,8 @@ export const generateContentRoute = async (req: Request, res: Response) => {
         });
 
     } catch (error: any) {
-        console.error('--- FATAL ERROR in /api/generate-content ---', error.message);
+        // UPDATED: Log the entire error object for better debugging
+        console.error('--- FATAL ERROR in /api/generate-content ---', error);
         return res.status(500).json({ error: 'An internal server error occurred during generation.' });
     }
 };
