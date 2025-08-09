@@ -2,7 +2,7 @@
 
 import { Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { supabaseAdmin, genAI } from '../services';
+import { supabaseAdmin, genAI } from '../services'; // This import now works again
 import fs from 'fs';
 import path from 'path';
 import { pipeline } from 'stream/promises';

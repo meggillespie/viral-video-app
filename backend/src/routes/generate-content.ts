@@ -1,13 +1,10 @@
 // File: backend/src/routes/generate-content.ts
 
 import { Request, Response } from 'express';
-import { GenerationConfig } from '@google/genai';
-import { genAI } from '../services';
+import { vertexAI } from '../services'; // <-- Correct import
 
-// Define the specific model version for Vertex AI compatibility
 const GEMINI_MODEL = 'gemini-2.5-flash';
 
-// Updated prompts focusing only on Short Form
 const SCRIPT_GENERATION_TEMPLATE = `
 You are an expert video scriptwriter specializing in short-form, vertical content (TikTok, Reels, Shorts). Use the provided viral analysis blueprint to write a new video script.
 
@@ -49,74 +46,63 @@ Return the result strictly as a JSON array of strings. Do NOT include any introd
 Example: ["Prompt for scene 1...", "Prompt for scene 2..."]
 `;
 
-// Renamed the export to match the file name
 export const generateContentRoute = async (req: Request, res: Response) => {
     try {
-        // Updated inputs: Expects analysis JSON and topic, not video source
         const { topic, outputType, analysis } = req.body;
-
         if (!topic || !outputType || !analysis) {
-            return res.status(400).json({ error: 'Missing required fields (topic, outputType, or analysis).' });
+            return res.status(400).json({ error: 'Missing required fields.' });
         }
 
-        console.log('Starting Generation...');
-        let generationPrompt = '';
-        let responseMimeType: "text/plain" | "application/json" = 'text/plain';
-
-        // Serialize the analysis JSON received from the client
         const analysisString = JSON.stringify(analysis);
+        let generationPrompt = '';
+        let isJsonOutput = false;
 
         if (outputType === 'Script') {
             generationPrompt = SCRIPT_GENERATION_TEMPLATE
                 .replace('${ANALYSIS_JSON}', analysisString)
                 .replace('${USER_TOPIC}', topic);
         } else { // AI Video Prompts
-            responseMimeType = 'application/json';
+            isJsonOutput = true;
             generationPrompt = VEO_GENERATION_TEMPLATE
                 .replace('${ANALYSIS_JSON}', analysisString)
                 .replace('${USER_TOPIC}', topic);
         }
 
-        const generationConfig: GenerationConfig = {
-            responseMimeType: responseMimeType
-        };
-
-        const generationResponse = await genAI.models.generateContent({
-            // UPDATED: Use the specific versioned model name
+        // --- FIX: Use the correct client and method for Vertex AI ---
+        const generativeModel = vertexAI.getGenerativeModel({
             model: GEMINI_MODEL,
-            contents: [{ role: "user", parts: [{ text: generationPrompt }] }],
-            config: generationConfig
         });
 
-        const generationText = generationResponse.text;
+        const result = await generativeModel.generateContent({
+            contents: [{ role: "user", parts: [{ text: generationPrompt }] }],
+            generationConfig: {
+                responseMimeType: isJsonOutput ? "application/json" : "text/plain",
+            }
+        });
+        
+        const response = result.response;
+        const generationText = response.candidates?.[0]?.content?.parts?.[0]?.text;
+        // --- END FIX ---
 
         if (!generationText) {
-            console.error("Generation response was empty.");
             return res.status(500).json({ error: 'AI generation returned an empty response.' });
         }
 
-        // --- Output Formatting ---
         let finalContent;
-        if (outputType === 'Script') {
-            finalContent = generationText;
-        } else {
-            try {
-                const cleanGenerationText = generationText.replace(/```json|```/g, '').trim();
-                finalContent = JSON.parse(cleanGenerationText);
+        if (isJsonOutput) {
+             try {
+                finalContent = JSON.parse(generationText);
             } catch (parseError) {
-                console.error("Failed to parse generation JSON:", generationText);
                 return res.status(500).json({ error: 'Failed to generate structured VEO prompts.' });
             }
+        } else {
+            finalContent = generationText;
         }
 
-        // Return the generated content
-        return res.status(200).json({
-            content: finalContent
-        });
+        return res.status(200).json({ content: finalContent });
 
     } catch (error: any) {
-        // UPDATED: Log the entire error object for better debugging
         console.error('--- FATAL ERROR in /api/generate-content ---', error);
-        return res.status(500).json({ error: 'An internal server error occurred during generation.' });
+        return res.status(500).json({ error: 'An internal server error occurred.' });
     }
 };

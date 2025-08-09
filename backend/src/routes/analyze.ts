@@ -1,8 +1,9 @@
 // File: backend/src/routes/analyze.ts 
-
 import { Request, Response } from 'express';
-import { Part, GenerationConfig } from '@google/genai';
-import { genAI } from '../services';
+// FIX: Import Part from @google-cloud/vertexai
+import { Part } from '@google-cloud/vertexai';
+import { vertexAI } from '../services';
+
 
 const ANALYSIS_PROMPT = `
 You are Vyralize, an expert AI system designed to deconstruct the virality of video content. Analyze the provided source video (multimodal input: visuals, audio, pacing, transcript) and extract key performance signals. Focus on elements relevant to short-form vertical video.
@@ -35,11 +36,11 @@ The JSON structure must adhere to the following schema:
 export const analyzeRoute = async (req: Request, res: Response) => {
     try {
         const { videoSource, mimeType } = req.body;
-
         if (!videoSource || !mimeType) {
             return res.status(400).json({ error: 'Missing videoSource or mimeType.' });
         }
 
+        // FIX: Use the 'Part' interface as the type
         const videoPart: Part = {
             fileData: {
                 mimeType: mimeType,
@@ -47,29 +48,28 @@ export const analyzeRoute = async (req: Request, res: Response) => {
             },
         };
 
-        console.log('Starting Analysis...');
+        console.log('Starting Analysis via Vertex AI...');
 
-        const analysisConfig: GenerationConfig = {
-            responseMimeType: "application/json"
-        };
-        
-        const analysisResponse = await genAI.models.generateContent({
-            model: 'gemini-1.5-flash',
-            contents: [{ role: "user", parts: [{ text: ANALYSIS_PROMPT }, videoPart] }],
-            config: analysisConfig 
+        const generativeModel = vertexAI.getGenerativeModel({
+            model: 'gemini-2.5-flash', // Using Gemini 2.5 Flash
         });
 
-        const analysisText = analysisResponse.text;
+        const result = await generativeModel.generateContent({
+            contents: [{ role: "user", parts: [{ text: ANALYSIS_PROMPT }, videoPart] }],
+            generationConfig: {
+                responseMimeType: "application/json",
+            }
+        });
+        
+        const response = result.response;
+        const analysisText = response.candidates?.[0]?.content?.parts?.[0]?.text;
 
         if (!analysisText) {
-            console.error("Analysis response was empty.");
             return res.status(500).json({ error: 'AI analysis returned an empty response.' });
         }
 
         try {
-            const cleanAnalysisText = analysisText.replace(/```json|```/g, '').trim();
-            const analysisJson = JSON.parse(cleanAnalysisText);
-            // Return the analysis JSON directly
+            const analysisJson = JSON.parse(analysisText);
             return res.status(200).json({ analysis: analysisJson });
         } catch (parseError) {
             console.error("Failed to parse analysis JSON:", analysisText);
@@ -77,7 +77,7 @@ export const analyzeRoute = async (req: Request, res: Response) => {
         }
 
     } catch (error: any) {
-        console.error('--- FATAL ERROR in /api/analyze ---', error.message);
+        console.error('--- FATAL ERROR in /api/analyze ---', error.response?.data || error.message);
         return res.status(500).json({ error: 'An internal server error occurred during analysis.' });
     }
 };
