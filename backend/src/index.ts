@@ -10,7 +10,7 @@ import { generateContentRoute } from './routes/generate-content';
 import { createSignedUrlRoute, transferToGeminiRoute } from './routes/storage';
 import { getVideoDurationRoute } from './routes/video';
 import { clerkWebhookRoute } from './routes/clerk-webhook';
-import { generateImageContentRoute } from './routes/generate-image-content'; // Import the new image route
+import { generateImageContent } from './routes/generate-image-content';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '8080', 10);
@@ -54,7 +54,7 @@ app.post('/api/create-signed-url', createSignedUrlRoute);
 app.post('/api/transfer-to-gemini', transferToGeminiRoute);
 app.post('/api/get-video-duration', getVideoDurationRoute);
 app.post('/api/clerk-webhook', clerkWebhookRoute);
-app.post('/api/generate-image-content', generateImageContentRoute);
+app.post('/api/generate-image-content', generateImageContent);
 
 
 app.get('/', (req, res) => {
