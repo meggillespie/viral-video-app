@@ -29,7 +29,8 @@ ${guide}
 
 // (kept) small helper to generate social text + optional headline with Gemini
 async function generateSocialText(topic: string, details: string, headlineWanted: boolean) {
-  const model = vertexAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite' });
+  // Using a reliable, fast model for text generation
+  const model = vertexAI.getGenerativeModel({ model: 'gemini-1.5-flash-001' });
   const prompt = `You are a social copywriter.
 
 Topic: "${topic}"
@@ -41,10 +42,14 @@ Return concise copy for three platforms and an optional headline:
 - Instagram: 1-2 short lines + 2-3 playful hashtags.
 ${headlineWanted ? '- Headline: 6-10 words, bold and catchy.' : ''}
 
-Output JSON with keys: linkedin, twitter, instagram${headlineWanted ? ', headline' : ''}.`;
+Output strictly as a JSON object with keys: linkedin, twitter, instagram${headlineWanted ? ', headline' : ''}.`;
 
   const resp = await model.generateContent({
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
+    // FIX: Explicitly request JSON output for reliability
+    generationConfig: {
+        responseMimeType: "application/json",
+    }
   });
 
   const text = resp.response?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') || '{}';
@@ -57,7 +62,8 @@ Output JSON with keys: linkedin, twitter, instagram${headlineWanted ? ', headlin
       instagram: parsed.instagram || '',
       headline: headlineWanted ? parsed.headline || null : null,
     };
-  } catch {
+  } catch (parseError) {
+    console.error("Failed to parse social text JSON:", text, parseError);
     return {
       linkedin: `Sharing quick insights on ${topic}.`,
       twitter: `${topic} — thoughts and takeaways.`,
@@ -108,13 +114,14 @@ export const generateImageContent = async (req: Request, res: Response) => {
     }
 
     // Queue + backoff to avoid 429 bursts
+    // This now uses the dependency-free queue implemented in services.ts, maintaining serialization.
     const gen = await imageQueue(() =>
       withBackoff(() =>
         model.generateContent({
           contents: [{ role: 'user', parts }],
           generationConfig: {
             // width/height accepted by Imagen 3 for text-to-image/edit
-            // @ts-expect-error: width/height supported by Imagen 3
+            // @ts-expect-error: width/height supported by Imagen 3 API but might be missing in current SDK types
             width,
             height,
             seed: Math.floor(Math.random() * 1e9),
@@ -134,6 +141,7 @@ export const generateImageContent = async (req: Request, res: Response) => {
     const mime = imagePart.inlineData.mimeType || 'image/png';
     const imageUrl = `data:${mime};base64,${base64}`;
 
+    // We also wrap the social text generation in backoff just in case.
     const copy = await withBackoff(() => generateSocialText(String(topic), String(details || ''), includeText));
 
     return res.status(200).json({
