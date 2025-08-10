@@ -9,10 +9,14 @@ function pickImagenModel(hasReferenceImage: boolean) {
   return hasReferenceImage ? 'imagen-3.0-capability-001' : 'imagen-3.0-fast-generate-001';
 }
 
+/*
+// FIX: Removed sizeForAspect usage as width/height parameters are causing API errors (400 Bad Request).
+// The API currently does not accept these parameters via the unified SDK's generationConfig when calling Imagen.
 function sizeForAspect(aspect?: string) {
   // Keep your current square output; add aspect support later if you expose it in the UI.
   return { width: 1024, height: 1024 };
 }
+*/
 
 function buildPrompt(topic: string, details: string, styleInfluence: number) {
   const influence = Math.max(0, Math.min(100, Number(styleInfluence)));
@@ -29,8 +33,8 @@ ${guide}
 
 // (kept) small helper to generate social text + optional headline with Gemini
 async function generateSocialText(topic: string, details: string, headlineWanted: boolean) {
-  // Using a reliable, fast model for text generation
-  const model = vertexAI.getGenerativeModel({ model: 'gemini-1.5-flash-001' });
+  // FIX: Updated model to gemini-2.5-flash as requested by the user to align with other routes.
+  const model = vertexAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
   const prompt = `You are a social copywriter.
 
 Topic: "${topic}"
@@ -46,7 +50,7 @@ Output strictly as a JSON object with keys: linkedin, twitter, instagram${headli
 
   const resp = await model.generateContent({
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    // FIX: Explicitly request JSON output for reliability
+    // Explicitly request JSON output for reliability
     generationConfig: {
         responseMimeType: "application/json",
     }
@@ -87,7 +91,7 @@ export const generateImageContent = async (req: Request, res: Response) => {
     const includeText = String(withTextOverlay ?? 'true') === 'true';
 
     const prompt = buildPrompt(String(topic), String(details || ''), Number(styleInfluence || 0));
-    const { width, height } = sizeForAspect();
+    // const { width, height } = sizeForAspect(); // FIX: Removed usage
 
     const modelId = pickImagenModel(!!sourceImage);
     const model = vertexAI.getGenerativeModel({ model: modelId });
@@ -120,10 +124,11 @@ export const generateImageContent = async (req: Request, res: Response) => {
         model.generateContent({
           contents: [{ role: 'user', parts }],
           generationConfig: {
-            // width/height accepted by Imagen 3 for text-to-image/edit
-            // @ts-expect-error: width/height supported by Imagen 3 API but might be missing in current SDK types
-            width,
-            height,
+            // FIX: Removed width/height from generationConfig as they cause 400 Bad Request errors
+            // when calling Imagen models via the unified Vertex AI SDK (getGenerativeModel).
+            // The model will use its default resolution.
+            // width,
+            // height,
             seed: Math.floor(Math.random() * 1e9),
           },
         })
@@ -158,6 +163,8 @@ export const generateImageContent = async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('--- FATAL ERROR in /api/generate-image-content ---', error);
     const code = Number(error?.code || error?.status) || 500;
-    return res.status(code).json({ error: error?.message || 'An internal server error occurred.' });
+    // Improve error reporting to the frontend
+    const message = error?.message || 'An internal server error occurred.';
+    return res.status(code).json({ error: message });
   }
 };
