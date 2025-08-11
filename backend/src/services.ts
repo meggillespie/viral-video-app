@@ -61,7 +61,7 @@ export const imageQueue = <T>(task: () => Promise<T>): Promise<T> => imageQueueI
 
 
 // Simple exponential backoff for 429/RESOURCE_EXHAUSTED from Vertex AI.
-// FIX: Updated strategy to handle extremely low default quotas (e.g., 1-5 RPM).
+// Updated strategy to handle extremely low default quotas (e.g., 1-5 RPM).
 export async function withBackoff<T>(fn: () => Promise<T>, tries = 6): Promise<T> {
   // Start with a significant delay, as per-minute quotas take time to reset.
   let delay = 8000; // 8 seconds
@@ -79,7 +79,7 @@ export async function withBackoff<T>(fn: () => Promise<T>, tries = 6): Promise<T
       if (!isQuota || i === tries - 1) {
         // If it's not a quota error, or if we've run out of tries, fail immediately.
         if (isQuota) {
-            console.error(`[Backoff Exhausted] Quota error persisted after ${tries} attempts. Failing request.`);
+            console.error(`[Backoff Exhausted] Quota error persisted after ${tries} attempts. Failing request. Model may be overloaded or quota is too low.`);
         }
         throw err;
       }
