@@ -1,15 +1,13 @@
 // File: backend/src/routes/generate-image-content.ts
 
+//gcloud run deploy vyralize-backend --source . --platform managed --region us-central1 --project vyralize-backend --set-env-vars="GOOGLE_CLOUD_LOCATION=us-east4,SUPABASE_URL=,SUPABASE_SERVICE_ROLE_KEY=[YOUR_SUPABASE_KEY],GOOGLE_API_KEY=[YOUR_GOOGLE_API_KEY]" --allow-unauthenticated --memory 2Gi --timeout 900s
+
 import { Request, Response } from 'express';
-// Import Part for typing
 import { Part } from '@google-cloud/vertexai';
 import { vertexAI, imageQueue, withBackoff } from '../services';
 
-// Define the models we will use in the multi-step process
 const GEMINI_MODEL = 'gemini-2.5-flash';
-// FIX: Update to Imagen 4 as requested by the user.
-const IMAGEN_MODEL = 'imagen-4.0-generate-preview-06-06'; 
-
+const IMAGEN_MODEL = 'imagen-3.0-generate-002';
 
 // ============================================================================
 // Step 1: Analyze Image Style and Content (Gemini 2.5 Flash)
@@ -176,31 +174,32 @@ Output ONLY the final prompt paragraph, and nothing else.`;
 
 
 // ============================================================================
-// Step 3: Generate Image (Imagen 4 Preview)
+// Step 3: Generate Image (Imagen 3)
 // ============================================================================
 async function generateImageFromPrompt(finalImagePrompt: string): Promise<{ base64: string, mime: string }> {
     const model = vertexAI.getGenerativeModel({ model: IMAGEN_MODEL });
 
     console.log(`Starting image generation with ${IMAGEN_MODEL}...`);
     
-    // Call Imagen 4 using the optimized text prompt.
-    // Rely on withBackoff as 429 errors are still possible.
+    // The JSON payload for Imagen 3's predict endpoint.
+    const requestPayload = {
+        instances: [
+            { prompt: finalImagePrompt }
+        ],
+        parameters: {
+            sampleCount: 1
+        }
+    };
+
     const gen = await withBackoff(() =>
-        model.generateContent({
-            contents: [{ role: 'user', parts: [{ text: finalImagePrompt }] }],
-            generationConfig: {
-                    // Optional: Add a random seed for variability
-                    //seed: Math.floor(Math.random() * 1e9),
-                    // Imagen 4 supports various parameters, but we keep it simple for now
-                    // to ensure compatibility and avoid parameter errors.
-            },
-        })
+        model.generateContent(finalImagePrompt) // Simpler call for a single text prompt
     );
 
+    // FIX: The response structure from generateContent is consistent.
+    // The second error was because the first error broke TypeScript's ability to know the type.
     const imagePart = gen?.response?.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'));
 
     if (!imagePart?.inlineData?.data) {
-        // This often happens if the generated prompt triggers safety filters.
         console.error("Image generation failed. Final prompt (for debugging):", finalImagePrompt);
         console.error("API Response:", JSON.stringify(gen.response, null, 2));
         throw new Error('No image returned by model. The request might have triggered safety filters. Please try adjusting the topic.');

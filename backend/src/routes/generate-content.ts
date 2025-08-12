@@ -1,7 +1,7 @@
 // File: backend/src/routes/generate-content.ts
 
 import { Request, Response } from 'express';
-import { vertexAI } from '../services'; // <-- Correct import
+import { vertexAI } from '../services'; 
 
 const GEMINI_MODEL = 'gemini-2.5-flash';
 
@@ -68,7 +68,6 @@ export const generateContentRoute = async (req: Request, res: Response) => {
                 .replace('${USER_TOPIC}', topic);
         }
 
-        // --- FIX: Use the correct client and method for Vertex AI ---
         const generativeModel = vertexAI.getGenerativeModel({
             model: GEMINI_MODEL,
         });
@@ -82,7 +81,6 @@ export const generateContentRoute = async (req: Request, res: Response) => {
         
         const response = result.response;
         const generationText = response.candidates?.[0]?.content?.parts?.[0]?.text;
-        // --- END FIX ---
 
         if (!generationText) {
             return res.status(500).json({ error: 'AI generation returned an empty response.' });

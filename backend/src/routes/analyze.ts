@@ -1,6 +1,5 @@
 // File: backend/src/routes/analyze.ts 
 import { Request, Response } from 'express';
-// FIX: Import Part from @google-cloud/vertexai
 import { Part } from '@google-cloud/vertexai';
 import { vertexAI } from '../services';
 
@@ -51,7 +50,7 @@ export const analyzeRoute = async (req: Request, res: Response) => {
         console.log('Starting Analysis via Vertex AI...');
 
         const generativeModel = vertexAI.getGenerativeModel({
-            model: 'gemini-2.5-flash', // Using Gemini 2.5 Flash
+            model: 'gemini-2.5-flash', 
         });
 
         const result = await generativeModel.generateContent({
