@@ -38,6 +38,8 @@ export const genAI = new GoogleGenAI({ apiKey: GOOGLE_API_KEY! });
 
 // ---- Quota-safety helpers ----
 
+/*
+// -- Temporarily Disabled for Debugging --
 // Dependency-free replacement for p-limit (Concurrency = 1)
 // This serializes requests to prevent quota bursts using a Promise chain.
 class SimpleQueue {
@@ -57,8 +59,11 @@ const imageQueueInstance = new SimpleQueue();
 
 // Export the queue function wrapper (maintains the same interface as p-limit)
 export const imageQueue = <T>(task: () => Promise<T>): Promise<T> => imageQueueInstance.add(task);
+*/
 
 
+/*
+// -- Temporarily Disabled for Debugging --
 // Simple exponential backoff for 429/RESOURCE_EXHAUSTED from Vertex AI.
 // Updated strategy to handle extremely low default quotas (e.g., 1-5 RPM).
 export async function withBackoff<T>(fn: () => Promise<T>, tries = 6): Promise<T> {
@@ -96,3 +101,4 @@ export async function withBackoff<T>(fn: () => Promise<T>, tries = 6): Promise<T
   // This line is technically unreachable because the loop throws on the last iteration.
   throw new Error('Backoff exhausted');
 }
+*/

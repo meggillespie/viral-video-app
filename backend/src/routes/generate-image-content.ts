@@ -2,7 +2,8 @@
 
 import { Request, Response } from 'express';
 import { Part } from '@google-cloud/vertexai';
-import { vertexAI, imageQueue, withBackoff } from '../services';
+// The helper imports are removed as they are commented out in services.ts
+import { vertexAI } from '../services';
 
 const GEMINI_MODEL = 'gemini-2.5-flash';
 const IMAGEN_MODEL = 'imagen-3.0-generate-002';
@@ -90,9 +91,10 @@ async function analyzeImageStyle(imageBuffer: Buffer, mimeType: string): Promise
     };
 
     // The prompt structure is [Instructions/Example, Image to Analyze]
-    const response = await withBackoff(() => model.generateContent({
+    // The withBackoff wrapper is removed.
+    const response = await model.generateContent({
         contents: [{ role: 'user', parts: [{ text: ANALYSIS_PROMPT_INSTRUCTIONS }, imagePart] }],
-    }));
+    });
 
     const text = response.response?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') || '{}';
     
@@ -156,10 +158,10 @@ Write a single paragraph (the final prompt for Imagen 4).
 
 Output ONLY the final prompt paragraph, and nothing else.`;
 
-    // Wrap this in backoff.
-    const response = await withBackoff(() => model.generateContent({
+    // The withBackoff wrapper is removed.
+    const response = await model.generateContent({
         contents: [{ role: 'user', parts: [{ text: masterPromptForGemini }] }],
-    }));
+    });
 
     const text = response.response?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') || '';
 
@@ -179,19 +181,8 @@ async function generateImageFromPrompt(finalImagePrompt: string): Promise<{ base
 
     console.log(`Starting image generation with ${IMAGEN_MODEL}...`);
     
-    // The JSON payload for Imagen 3's predict endpoint.
-    const requestPayload = {
-        instances: [
-            { prompt: finalImagePrompt }
-        ],
-        parameters: {
-            sampleCount: 1
-        }
-    };
-
-    const gen = await withBackoff(() =>
-        model.generateContent(finalImagePrompt) // Simpler call for a single text prompt
-    );
+    // The withBackoff wrapper is removed.
+    const gen = await model.generateContent(finalImagePrompt);
 
     // FIX: The response structure from generateContent is consistent.
     // The second error was because the first error broke TypeScript's ability to know the type.
@@ -231,14 +222,14 @@ ${headlineWanted ? '- Headline: 6-10 words, bold and catchy hook.' : ''}
 
 Output strictly as a JSON object with keys: linkedin, twitter, instagram, facebook${headlineWanted ? ', headline' : ''}.`;
 
-    // Wrap this in backoff.
-    const resp = await withBackoff(() => model.generateContent({
+    // The withBackoff wrapper is removed.
+    const resp = await model.generateContent({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         // Explicitly request JSON output for reliability
         generationConfig: {
             responseMimeType: "application/json",
         }
-    }));
+    });
 
     const text = resp.response?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') || '{}';
 
@@ -296,32 +287,30 @@ export const generateImageContent = async (req: Request, res: Response) => {
 
         // --- The Multi-Step Process ---
         
-        // CRITICAL: We use the imageQueue to serialize the entire pipeline.
-        const result = await imageQueue(async () => {
-            
-            // Step 1: Analyze Style (Now using detailed analysis)
-            console.log("[Pipeline] 1. Analyzing Style (Gemini)...");
-            const detailedAnalysis = await analyzeImageStyle(buf, mimeType);
-            
-            // Step 2: Build Final Prompt (Now using structured analysis)
-            console.log("[Pipeline] 2. Building Optimized Prompt (Gemini)...");
-            const optimizedPrompt = await buildOptimizedPrompt(detailedAnalysis, String(topic), String(details || ''), influence);
-            
-            // Step 3: Generate Image (Now using Imagen 4)
-            console.log("[Pipeline] 3. Generating Image (Imagen 4)...");
-            const imageData = await generateImageFromPrompt(optimizedPrompt);
-            const imageUrl = `data:${imageData.mime};base64,${imageData.base64}`;
+        // The imageQueue wrapper is removed. The steps will now run sequentially.
+        
+        // Step 1: Analyze Style (Now using detailed analysis)
+        console.log("[Pipeline] 1. Analyzing Style (Gemini)...");
+        const detailedAnalysis = await analyzeImageStyle(buf, mimeType);
+        
+        // Step 2: Build Final Prompt (Now using structured analysis)
+        console.log("[Pipeline] 2. Building Optimized Prompt (Gemini)...");
+        const optimizedPrompt = await buildOptimizedPrompt(detailedAnalysis, String(topic), String(details || ''), influence);
+        
+        // Step 3: Generate Image (Now using Imagen 3)
+        console.log("[Pipeline] 3. Generating Image (Imagen 4)...");
+        const imageData = await generateImageFromPrompt(optimizedPrompt);
+        const imageUrl = `data:${imageData.mime};base64,${imageData.base64}`;
 
-            // Step 4: Generate Social Text
-            console.log("[Pipeline] 4. Generating Social Text (Gemini)...");
-            const copy = await generateSocialText(String(topic), String(details || ''), includeText);
+        // Step 4: Generate Social Text
+        console.log("[Pipeline] 4. Generating Social Text (Gemini)...");
+        const copy = await generateSocialText(String(topic), String(details || ''), includeText);
 
-            return {
-                imageUrl,
-                posts: copy,
-                headline: copy.headline,
-            };
-        });
+        const result = {
+            imageUrl,
+            posts: copy,
+            headline: copy.headline,
+        };
 
         return res.status(200).json({
             result: {
