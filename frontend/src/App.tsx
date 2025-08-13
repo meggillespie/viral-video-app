@@ -10,7 +10,7 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl || "https://example.supabase.co", supabaseAnonKey || "example-anon-key");
 
 const BACKEND_API_URL = import.meta.env.VITE_BACKEND_API_URL;
-const MAX_DURATION_SECONDS = 120; // 2 minutes limit for video
+const MAX_DURATION_SECONDS = 120; // 2 min. limit for video
 
 // --- Helper Components & Types ---
 
