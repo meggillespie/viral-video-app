@@ -1,7 +1,5 @@
 // File: backend/src/routes/generate-image-content.ts
 
-//gcloud run deploy vyralize-backend --source . --platform managed --region us-central1 --project vyralize-backend --set-env-vars="GOOGLE_CLOUD_LOCATION=us-east4,SUPABASE_URL=,SUPABASE_SERVICE_ROLE_KEY=[YOUR_SUPABASE_KEY],GOOGLE_API_KEY=[YOUR_GOOGLE_API_KEY]" --allow-unauthenticated --memory 2Gi --timeout 900s
-
 import { Request, Response } from 'express';
 import { Part } from '@google-cloud/vertexai';
 import { vertexAI, imageQueue, withBackoff } from '../services';

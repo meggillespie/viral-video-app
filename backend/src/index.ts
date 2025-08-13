@@ -2,7 +2,7 @@
 
 import express from 'express';
 import cors from 'cors';
-import multer from 'multer'; // Import multer
+import multer from 'multer';
 
 // Import route handlers
 import { analyzeRoute } from './routes/analyze';
@@ -32,7 +32,7 @@ app.use(cors(corsOptions));
 
 
 // CRITICAL: Advanced Body Parsing Middleware
-// We must selectively apply the correct parser based on the route.
+// Selectively apply the correct parser based on the route.
 app.use((req, res, next) => {
     if (req.path === '/api/clerk-webhook') {
         // 1. Clerk Webhook requires the raw body

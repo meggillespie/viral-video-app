@@ -1,9 +1,6 @@
 import { Request, Response } from 'express';
 import playdl from 'play-dl';
 
-// This code runs once when the server starts.
-// It configures play-dl to use your cookie for all future requests.
-// This code runs once when the server starts.
 const youtubeCookie = process.env.YOUTUBE_COOKIE;
 
 if (youtubeCookie) {
