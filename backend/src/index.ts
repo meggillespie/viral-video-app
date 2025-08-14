@@ -1,6 +1,4 @@
-// File: backend/src/index.ts 
-// Forcing a new revision to refresh permissions
-
+// File: backend/src/index.ts
 
 import express from 'express';
 import cors from 'cors';
@@ -25,7 +23,8 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 // Middleware - Define allowed origins and other CORS options
 const corsOptions = {
-  origin: 'https://viral-video-app-ai-plexus.vercel.app', // Your Vercel frontend URL
+  // Ensure this matches your frontend deployment URL
+  origin: 'https://viral-video-app-ai-plexus.vercel.app',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
@@ -34,30 +33,37 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 
-// CRITICAL: Advanced Body Parsing Middleware
-// Selectively apply the correct parser based on the route.
-app.use((req, res, next) => {
-    if (req.path === '/api/clerk-webhook') {
-        // 1. Clerk Webhook requires the raw body
-        express.raw({ type: 'application/json' })(req, res, next);
-    } else if (req.path === '/api/generate-image-content' && req.method === 'POST') {
-        // 2. Image generation requires multipart/form-data parsing
-        // 'sourceImage' is the field name the frontend will use
-        upload.single('sourceImage')(req, res, next);
-    } else {
-        // 3. All other routes use standard JSON parsing
-        express.json()(req, res, next);
-    }
-});
+// --- Body Parsing Middleware Configuration (Revised) ---
 
-// Routes (Updated)
+// 1. Handle the Clerk Webhook first, as it requires the raw body.
+// We apply the raw parser specifically to this route before the global JSON parser.
+app.post('/api/clerk-webhook', express.raw({ type: 'application/json' }), clerkWebhookRoute);
+
+// 2. Apply standard JSON parsing globally for other routes.
+// The JSON parser ignores requests that are not Content-Type: application/json (like file uploads).
+app.use(express.json());
+
+
+// --- Routes (Updated) ---
+
+// Video Routes (JSON)
 app.post('/api/analyze', analyzeRoute);
-app.post('/api/analyze-image', analyzeImageRoute);
 app.post('/api/generate-content', generateContentRoute);
+app.post('/api/get-video-duration', getVideoDurationRoute);
+
+// Storage Routes (JSON)
 app.post('/api/create-signed-url', createSignedUrlRoute);
 app.post('/api/transfer-to-gemini', transferToGeminiRoute);
-app.post('/api/get-video-duration', getVideoDurationRoute);
-app.post('/api/clerk-webhook', clerkWebhookRoute);
+
+// Image Routes
+
+// Image Analysis (Multipart/Form-Data)
+// FIX: Apply the Multer middleware directly to the route where the upload now occurs.
+// 'sourceImage' must match the field name used in the frontend FormData.
+app.post('/api/analyze-image', upload.single('sourceImage'), analyzeImageRoute);
+
+// Image Generation (JSON)
+// This route now expects JSON data (analysis results, topic, intent).
 app.post('/api/generate-image-content', generateImageContent);
 
 
