@@ -241,11 +241,11 @@ async function generateSocialText(
 }
 
 // ============================================================================
-// Main Route Handler
+// Main Route Handler (Enhanced Error Logging)
 // ============================================================================
 export const generateImageContent = async (req: Request, res: Response) => {
+    let currentStep = "Initialization"; // Track the step for better error reporting
     try {
-        // This endpoint now expects JSON input, not multipart/form-data.
         const {
             topic,
             details,
@@ -255,6 +255,7 @@ export const generateImageContent = async (req: Request, res: Response) => {
             withTextOverlay
         } = req.body;
 
+        currentStep = "Input Validation";
         // Input Validation
         if (!topic) return res.status(400).json({ error: 'Topic is required.' });
         if (!analysis) return res.status(400).json({ error: 'Analysis data is required.' });
@@ -269,6 +270,7 @@ export const generateImageContent = async (req: Request, res: Response) => {
         // --- The Multi-Step Generation Process ---
 
         // Step 2: Build Final Prompt
+        currentStep = "Prompt Engineering (Gemini)";
         console.log(`[Pipeline] 2. Building Optimized Prompt (Gemini) - Intent: ${intent}...`);
         const optimizedPrompt = await buildOptimizedPrompt(
             analysis as ImageAnalysis,
@@ -279,11 +281,13 @@ export const generateImageContent = async (req: Request, res: Response) => {
         );
 
         // Step 3: Generate Image (Imagen 4)
+        currentStep = "Image Generation (Imagen 4 Global)";
         console.log("[Pipeline] 3. Generating Image (Imagen 4)...");
         const imageData = await generateImageFromPrompt(optimizedPrompt);
         const imageUrl = `data:${imageData.mime};base64,${imageData.base64}`;
 
         // Step 4: Generate Social Text
+        currentStep = "Social Text Generation (Gemini)";
         console.log("[Pipeline] 4. Generating Social Text (Gemini)...");
         const copy = await generateSocialText(
             String(topic),
@@ -312,14 +316,46 @@ export const generateImageContent = async (req: Request, res: Response) => {
         });
 
     } catch (error: any) {
-        console.error('--- FATAL ERROR in /api/generate-image-content ---', error);
-        const code = Number(error?.code || error?.status) || 500;
+        // --- ENHANCED ERROR LOGGING ---
+        console.error(`--- FATAL ERROR in /api/generate-image-content (Step: ${currentStep}) ---`);
 
-        let message = error?.message || 'An internal server error occurred.';
-        if (code === 429 || /RESOURCE_EXHAUSTED|Too Many Requests|Quota exceeded/i.test(message)) {
-            message = "The service is currently overloaded or the project quota limit has been reached (429). Please wait 1-2 minutes and try again.";
+        // Log the primary error details
+        console.error("Error Message:", error.message);
+        console.error("Error Code/Status:", error.code || error.status);
+        console.error("Stack Trace:", error.stack); // Log the full stack trace
+
+        // If the error seems related to an API call, try to extract more details
+        if (error.response) {
+            console.error("API Response Status:", error.response.status);
+            const responseBody = error.response.data || error.response.body;
+            if (responseBody) {
+                try {
+                    console.error("API Response Body:", JSON.stringify(responseBody, null, 2));
+                } catch (e) {
+                    console.error("API Response Body (Raw):", responseBody);
+                }
+            }
         }
 
+        // --- Response Handling ---
+        const code = Number(error?.code || error?.status) || 500;
+        let message = error?.message || 'An internal server error occurred.';
+
+        // Specific interpretation based on the known error
+        if (/Unable to detect project_id|GOOGLE_CLOUD_PROJECT is not set/i.test(message)) {
+             message = "Server Configuration Error: Unable to detect Google Cloud Project ID. Ensure environment variables are set correctly in Cloud Run.";
+        }
+        // Check for Permissions issues (403 Forbidden)
+        else if (code === 403 || /PERMISSION_DENIED|access|forbidden/i.test(message)) {
+            message = "Access denied (403). The Cloud Run service account may lack the 'Vertex AI User' permission. Please check IAM settings.";
+        }
+        // Check for Quota/Capacity issues (429)
+        else if (code === 429 || /RESOURCE_EXHAUSTED|Too Many Requests|Quota exceeded|429/i.test(message)) {
+            // This might still happen even with the global endpoint if the overall quota limit is 0 or global capacity is full.
+            message = "Quota or capacity reached (429). Please verify your Google Cloud quotas for Imagen 4 Preview models (limit might be 0) or try again later.";
+        }
+
+        // Ensure the status code reflects the underlying error if possible, otherwise fallback to 500.
         return res.status(code >= 400 && code < 600 ? code : 500).json({ error: message });
     }
 };
