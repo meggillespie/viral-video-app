@@ -8,6 +8,7 @@ import multer from 'multer';
 
 // Import route handlers
 import { analyzeRoute } from './routes/analyze';
+import { analyzeImageRoute } from './routes/analyze-image';
 import { generateContentRoute } from './routes/generate-content';
 import { createSignedUrlRoute, transferToGeminiRoute } from './routes/storage';
 import { getVideoDurationRoute } from './routes/video';
@@ -51,6 +52,7 @@ app.use((req, res, next) => {
 
 // Routes (Updated)
 app.post('/api/analyze', analyzeRoute);
+app.post('/api/analyze-image', analyzeImageRoute);
 app.post('/api/generate-content', generateContentRoute);
 app.post('/api/create-signed-url', createSignedUrlRoute);
 app.post('/api/transfer-to-gemini', transferToGeminiRoute);

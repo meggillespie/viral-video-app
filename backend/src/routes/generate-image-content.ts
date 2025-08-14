@@ -1,164 +1,116 @@
 // File: backend/src/routes/generate-image-content.ts
 
 import { Request, Response } from 'express';
-import { Part } from '@google-cloud/vertexai';
-// The helper imports are removed as they are commented out in services.ts
+// Removed Part import as it's no longer used for image uploads here.
 import { vertexAI } from '../services';
+
+// Define the interface locally or import if shared. Redefined here for completeness.
+interface ImageAnalysis {
+    subjects: Array<{
+        name: string;
+        description: string;
+        prominence: string;
+    }>;
+    setting: {
+        location: string;
+        time_of_day: string;
+        context: string;
+    };
+    style_elements: {
+        artistic_medium: string;
+        photography_style: string;
+        lighting: string;
+        color_palette: {
+            dominant_colors: string[];
+            description: string;
+        };
+        composition: string;
+        overall_mood: string;
+    };
+}
 
 const GEMINI_MODEL = 'gemini-2.5-flash';
 const IMAGEN_MODEL = 'imagen-3.0-generate-002';
 
-// ============================================================================
-// Step 1: Analyze Image Style and Content (Gemini 2.5 Flash)
-// ============================================================================
+type GenerationIntent = 'AdaptRemix' | 'ExtractStyle';
 
-// Define the structure for the detailed analysis output
-interface ImageAnalysis {
-    summary: string;
-    visualElements: {
-        // Ensure "Composition and Style" is present, allow other flexible keys
-        "Composition and Style": string;
-        [key: string]: string; 
-    };
-    textElements: string;
-    overallImpression: string;
-}
-
-// The detailed few-shot prompt requested by the user, adapted for JSON output.
-const ANALYSIS_PROMPT_INSTRUCTIONS = `
-**Role:** You are an AI assistant specialized in creating detailed, neutral, and structured descriptions of images for a digital content application. Your analysis must include both the content of the image and its artistic composition.
-
-**Task:** Analyze the user-provided image and generate a comprehensive description. Your description must be objective, focusing only on what is visually and textually present. Do not interpret the truthfulness of any claims or express personal opinions.
-
-**Instructions for Analysis:**
-* **Content:** Identify all people, objects, and text.
-* **Composition:** Pay close attention to graphic and artistic elements. Specifically describe the use of **lighting, shadows, focus (including blurring or depth of field), color saturation, medium (e.g., photorealistic, cartoon, illustration), and overall visual style.**
-
-**Output Format:**
-You MUST output the analysis strictly as a structured JSON object. Do NOT include any introductory text or markdown formatting. The JSON structure must adhere to the following schema:
-
-{
-  "summary": "A single, concise sentence summarizing the image's subject and style.",
-  "visualElements": {
-    "Composition and Style": "Description of lighting, focus, color palette, medium, and overall aesthetic.",
-    "[Other Key Element 1]": "Description (e.g., Central Figure, Background, Logos, Recognizable Identities)",
-    "[Other Key Element 2]": "Description"
-  },
-  "textElements": "A verbatim transcription of all visible text in the image. If none, state 'None'.",
-  "overallImpression": "A paragraph describing the tone and likely purpose of the image based on its combined elements."
-}
-
----
-**EXAMPLE ANALYSIS (Based on a reference image description):**
----
-
-*Reference Image Description: A political graphic with Donald Trump center frame, dark lighting, American flag background, Google and Microsoft logos on the sides, and a headline about hiring practices.*
-
-*Example JSON Output:*
-{
-  "summary": "A political, social media-style graphic featuring a dramatically lit portrait of President Donald Trump.",
-  "visualElements": {
-    "Central Figure": "Donald Trump is the main subject, positioned in the center. He is wearing a dark suit, a white shirt, and a red tie, with a small American flag pin on his lapel. He has a stern, confrontational expression and is looking directly at the viewer.",
-    "Background": "A large American flag serves as the backdrop. It is slightly out of focus and its colors are muted, which makes the central figure stand out.",
-    "Logos": "On either side of Trump at shoulder level are the prominent logos of Google and Microsoft, each enclosed in a black circle with a soft white glow.",
-    "Composition and Style": "Photorealistic style with graphic overlays. The image uses dramatic, high-contrast lighting (chiaroscuro) that casts strong shadows on Trump's face. The focus is sharply on his face (shallow depth of field), while the background is softly blurred. The color palette is dominated by red, white, and blue, but the overall tone is dark and serious."
-  },
-  "textElements": "Headline: 'DONALD TRUMP TELLS MICROSOFT AND GOOGLE TO STOP HIRING INDIANS, SAYS IT HURTS THE U.S. JOBS'. Branding: 'EVOLVING AI'. Call to Action: 'READ THE CAPTION'.",
-  "overallImpression": "The image is designed to look like a news summary or a meme for a social media platform. The combination of Trump's intense gaze, the dramatic lighting, and the provocative headline creates a highly charged and attention-grabbing message."
-}
----
-**END OF EXAMPLE**
----
-
-**NOW, PROCESS THE NEW IMAGE PROVIDED BY THE USER AND OUTPUT THE JSON:**
-`;
-
-
-async function analyzeImageStyle(imageBuffer: Buffer, mimeType: string): Promise<ImageAnalysis> {
-    // We must configure the model to output JSON.
-    const model = vertexAI.getGenerativeModel({ 
-        model: GEMINI_MODEL,
-        generationConfig: {
-            responseMimeType: "application/json",
-        }
-    });
-    
-    const imagePart: Part = {
-        inlineData: {
-            data: imageBuffer.toString('base64'),
-            mimeType: mimeType,
-        },
-    };
-
-    // The prompt structure is [Instructions/Example, Image to Analyze]
-    // The withBackoff wrapper is removed.
-    const response = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: ANALYSIS_PROMPT_INSTRUCTIONS }, imagePart] }],
-    });
-
-    const text = response.response?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') || '{}';
-    
-    try {
-        const parsed: ImageAnalysis = JSON.parse(text);
-        // Basic validation of the structure
-        if (!parsed.summary || !parsed.visualElements || !parsed.visualElements["Composition and Style"]) {
-            throw new Error("Analysis JSON did not meet the required schema.");
-        }
-        return parsed;
-    } catch (error) {
-        console.error("Style analysis failed or returned invalid JSON:", text, error);
-        // Fallback if analysis fails
-        return {
-            summary: "A high-quality image.",
-            visualElements: {
-                "Composition and Style": "Professional, clean composition, balanced lighting, photorealistic."
-            },
-            textElements: "None",
-            overallImpression: "The image is intended for general use."
-        };
-    }
-}
 
 // ============================================================================
 // Step 2: Generate Optimized Image Prompt (Gemini 2.5 Flash)
 // ============================================================================
-async function buildOptimizedPrompt(analysis: ImageAnalysis, topic: string, details: string, styleInfluence: number): Promise<string> {
+
+// Prompt Templates based on the PDF (Step 2, Case A and B)
+
+const PROMPT_TEMPLATE_ADAPT_REMIX = `
+You are an expert prompt engineer for the text-to-image model Imagen 3. Your task is to synthesize information to create a new, highly effective image prompt.
+
+**INPUTS:**
+1. **Image Analysis JSON:** \${ANALYSIS_JSON}
+2. **User Topic:** "\${USER_TOPIC}"
+3. **User Details:** "\${USER_DETAILS}"
+4. **Creative Freedom Level:** \${CONTROL_LEVEL} (0.0 to 1.0)
+
+**INSTRUCTIONS:**
+- Your primary goal is to create a new scene that *adapts* the original image's subjects and setting to the new user topic.
+- The main subject(s) from 'subjects.name' and the general context from 'setting.context' MUST be present in the new prompt.
+- Integrate the 'user_topic' and 'user_details' seamlessly into this scene.
+- Use the 'style_elements' from the analysis as a strong foundation for the visual description.
+- The Creative Freedom Level dictates how much you should deviate from the original scene. 0.0 means a very faithful adaptation. 1.0 means a highly creative, almost abstract reinterpretation that still includes the core subjects and topic.
+- **CRITICAL:** The final image must contain absolutely NO TEXT, WORDS, OR LETTERS. Do not include any instructions that might generate text.
+
+Your output must be a single, concise, and descriptive prompt paragraph for Imagen 3, and nothing else.
+`;
+
+const PROMPT_TEMPLATE_EXTRACT_STYLE = `
+You are an expert prompt engineer for the text-to-image model Imagen 3. Your task is to synthesize information to create a new, highly effective image prompt.
+
+**INPUTS:**
+1. **Image Analysis JSON:** \${ANALYSIS_JSON}
+2. **User Topic:** "\${USER_TOPIC}"
+3. **User Details:** "\${USER_DETAILS}"
+4. **Style Adherence Level:** \${CONTROL_LEVEL} (0.0 to 1.0)
+
+**INSTRUCTIONS:**
+- Your primary goal is to create a new image about the 'user_topic' that meticulously recreates the *style* of the original image.
+- **CRITICAL:** You MUST IGNORE the 'subjects' and 'setting' fields from the Image Analysis JSON. Do NOT include the original people, objects, or locations in your prompt.
+- Your prompt's subject matter must ONLY come from the 'user_topic' and 'user_details'.
+- You MUST use the descriptions in the 'style_elements' object (artistic_medium, lighting, color_palette, composition, etc.) to define the visual style of the new image.
+- The Style Adherence Level dictates how strictly you must follow these style rules. 0.0 is loosely inspired. 1.0 is a near-perfect stylistic replication.
+- **CRITICAL:** The final image must contain absolutely NO TEXT, WORDS, OR LETTERS. Do not include any instructions that might generate text.
+
+Your output must be a single, concise, and descriptive prompt paragraph for Imagen 3, and nothing else.
+`;
+
+
+async function buildOptimizedPrompt(
+    analysis: ImageAnalysis,
+    topic: string,
+    details: string,
+    intent: GenerationIntent,
+    controlLevel: number // Expecting 0-100 from frontend
+): Promise<string> {
     const model = vertexAI.getGenerativeModel({ model: GEMINI_MODEL });
 
-    // Extract key information from the structured analysis
-    const styleDetails = analysis.visualElements["Composition and Style"];
-    // Combine all other visual elements (subjects, background, logos)
-    const subjectDetails = Object.entries(analysis.visualElements)
-        .filter(([key]) => key !== "Composition and Style")
-        .map(([key, value]) => `${key}: ${value}`)
-        .join('; ');
-    
-    // Updated prompt engineering to utilize the detailed analysis and target Imagen 4.
-    const masterPromptForGemini = `You are an expert prompt engineer for Imagen 4, a state-of-the-art text-to-image AI. Your task is to synthesize user requirements and a detailed image analysis into a single, cohesive, descriptive paragraph for image generation.
+    const analysisJsonString = JSON.stringify(analysis);
+    // Normalize control level to 0.0 - 1.0 scale required by the prompt
+    const normalizedControlLevel = (controlLevel / 100).toFixed(2);
 
-**User's Goal (New Content):**
-- **Topic:** "${topic}"
-- **Details:** "${details || 'None'}"
+    let masterPromptForGemini = '';
 
-**Source Image Analysis (Inspiration):**
-- **Summary:** "${analysis.summary}"
-- **Style & Composition (CRITICAL):** "${styleDetails}"
-- **Key Subjects/Objects/Identities:** "${subjectDetails}"
-- **Overall Impression:** "${analysis.overallImpression}"
+    if (intent === 'AdaptRemix') {
+        masterPromptForGemini = PROMPT_TEMPLATE_ADAPT_REMIX
+            .replace('${ANALYSIS_JSON}', analysisJsonString)
+            .replace('${USER_TOPIC}', topic)
+            .replace('${USER_DETAILS}', details || 'None')
+            .replace('${CONTROL_LEVEL}', normalizedControlLevel);
+    } else { // ExtractStyle
+        masterPromptForGemini = PROMPT_TEMPLATE_EXTRACT_STYLE
+            .replace('${ANALYSIS_JSON}', analysisJsonString)
+            .replace('${USER_TOPIC}', topic)
+            .replace('${USER_DETAILS}', details || 'None')
+            .replace('${CONTROL_LEVEL}', normalizedControlLevel);
+    }
 
-**Influence Level:** ${styleInfluence}/100 (100=Strictly adhere to source style/subjects; 50=Balanced blend; 0=Ignore source, use only Topic/Details).
-
-**Your Task:**
-Write a single paragraph (the final prompt for Imagen 4).
-1. Weave the essence of the source **Style & Composition** into the description of the new scene based on the User's Goal.
-2. Be vivid and detailed. Describe the aesthetic (e.g., photorealistic, cartoon, lighting, focus, color palette, medium) derived from the analysis.
-3. The influence level dictates how closely the prompt must mirror the source analysis vs. the new topic.
-4. If recognizable identities or specific styles are present in "Key Subjects", incorporate them naturally, and scale style and aesthetic by the Influence Level.
-5. **CRITICAL:** The final image must contain absolutely NO TEXT, WORDS, OR LETTERS. Do not include any instructions that might generate text.
-
-Output ONLY the final prompt paragraph, and nothing else.`;
-
-    // The withBackoff wrapper is removed.
     const response = await model.generateContent({
         contents: [{ role: 'user', parts: [{ text: masterPromptForGemini }] }],
     });
@@ -176,16 +128,14 @@ Output ONLY the final prompt paragraph, and nothing else.`;
 // ============================================================================
 // Step 3: Generate Image (Imagen 3)
 // ============================================================================
+// (This function remains unchanged as it was working correctly)
 async function generateImageFromPrompt(finalImagePrompt: string): Promise<{ base64: string, mime: string }> {
     const model = vertexAI.getGenerativeModel({ model: IMAGEN_MODEL });
 
     console.log(`Starting image generation with ${IMAGEN_MODEL}...`);
-    
-    // The withBackoff wrapper is removed.
+
     const gen = await model.generateContent(finalImagePrompt);
 
-    // FIX: The response structure from generateContent is consistent.
-    // The second error was because the first error broke TypeScript's ability to know the type.
     const imagePart = gen?.response?.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'));
 
     if (!imagePart?.inlineData?.data) {
@@ -204,25 +154,51 @@ async function generateImageFromPrompt(finalImagePrompt: string): Promise<{ base
 // ============================================================================
 // Step 4: Generate Social Text (Gemini 2.5 Flash)
 // ============================================================================
-// (This function remains unchanged as it was working correctly)
-async function generateSocialText(topic: string, details: string, headlineWanted: boolean) {
+
+// Updated Prompt based on the PDF (Step 3) to use the structured analysis data
+const SOCIAL_TEXT_PROMPT_TEMPLATE = `
+You are an expert social media manager. Based on the provided information, generate compelling posts for Facebook, Instagram, X (formerly Twitter), and LinkedIn.
+
+**CONTEXT:**
+**User's Goal:** "\${USER_TOPIC}"
+**Visual Prompt Used:** "\${FINAL_IMAGEN_PROMPT}"
+**Original Image Inspiration (for tone/style):**
+- Subjects: \${SUBJECT_NAMES}
+- Style: \${STYLE_MOOD} and \${STYLE_PHOTO}
+
+**INSTRUCTIONS:**
+- **Facebook:** Write an engaging post (2-3 sentences) with relevant hashtags.
+- **Instagram:** Write a visually-focused caption, suggest relevant visual hashtags, and include a call to action.
+- **X:** Write a concise, impactful post under 280 characters with 2-3 key hashtags.
+- **LinkedIn:** Write a professional, slightly more detailed post explaining the context or message behind the image.
+\${HEADLINE_WANTED ? '- Headline: 6-10 words, bold and catchy hook for the image overlay.' : ''}
+
+Output strictly as a JSON object with keys: linkedin, twitter, instagram, facebook\${HEADLINE_WANTED ? ', headline' : ''}.
+`;
+
+async function generateSocialText(
+    topic: string,
+    analysis: ImageAnalysis,
+    finalImagePrompt: string,
+    headlineWanted: boolean
+) {
     const model = vertexAI.getGenerativeModel({ model: GEMINI_MODEL });
-    // Prompt ensures Facebook is included as requested.
-    const prompt = `You are a social copywriter.
 
-Topic: "${topic}"
-${details ? `Details: ${details}` : ''}
+    // Extract relevant info from analysis for the prompt
+    const subjectNames = analysis.subjects.map(s => s.name).join(', ') || 'N/A';
+    const styleMood = analysis.style_elements.overall_mood || 'N/A';
+    const stylePhoto = analysis.style_elements.photography_style || 'N/A';
 
-Return concise copy for the following four platforms and an optional headline, adhering to their specific tones and formats:
-- **Instagram:** Make it visual-focused, use relevant emojis, and include a strong set of hashtags.
-- **Facebook:** Write an engaging post that is slightly more detailed and encourages discussion and strategic emojis.
-- **X (formerly Twitter):** Keep it concise, witty, punchy, and under 270 characters. Use relevant hashtags and strategic emojis.
-- **LinkedIn:** Craft an insightful, short paragraph with a CTA, in a professional tone, focusing on business or industry implications, with limited emojis.
-${headlineWanted ? '- Headline: 6-10 words, bold and catchy hook.' : ''}
+    const prompt = SOCIAL_TEXT_PROMPT_TEMPLATE
+        .replace('${USER_TOPIC}', topic)
+        .replace('${FINAL_IMAGEN_PROMPT}', finalImagePrompt)
+        .replace('${SUBJECT_NAMES}', subjectNames)
+        .replace('${STYLE_MOOD}', styleMood)
+        .replace('${STYLE_PHOTO}', stylePhoto)
+        // Use regex replace with 'g' flag to ensure both replacements happen
+        .replace(/\${HEADLINE_WANTED}/g, headlineWanted ? 'true' : '');
 
-Output strictly as a JSON object with keys: linkedin, twitter, instagram, facebook${headlineWanted ? ', headline' : ''}.`;
 
-    // The withBackoff wrapper is removed.
     const resp = await model.generateContent({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         // Explicitly request JSON output for reliability
@@ -238,7 +214,7 @@ Output strictly as a JSON object with keys: linkedin, twitter, instagram, facebo
         return {
             linkedin: parsed.linkedin || '',
             // Handle potential variations in the key for Twitter/X
-            twitter: parsed.twitter || parsed.x || '', 
+            twitter: parsed.twitter || parsed.x || '',
             instagram: parsed.instagram || '',
             facebook: parsed.facebook || '',
             headline: headlineWanted ? parsed.headline || null : null,
@@ -260,51 +236,52 @@ Output strictly as a JSON object with keys: linkedin, twitter, instagram, facebo
 // ============================================================================
 export const generateImageContent = async (req: Request, res: Response) => {
     try {
-        const sourceImage: any =
-            (req as any).file ||
-            (req as any).files?.sourceImage ||
-            (Array.isArray((req as any).files) ? (req as any).files[0] : undefined);
+        // This endpoint now expects JSON input, not multipart/form-data.
+        const {
+            topic,
+            details,
+            analysis,
+            intent,
+            controlLevel,
+            withTextOverlay
+        } = req.body;
 
-        const { topic, details, styleInfluence, withTextOverlay } = req.body;
-        
         // Input Validation
         if (!topic) return res.status(400).json({ error: 'Topic is required.' });
-        if (!sourceImage) return res.status(400).json({ error: 'Source image file is required.' });
+        if (!analysis) return res.status(400).json({ error: 'Analysis data is required.' });
+        if (!intent || (intent !== 'AdaptRemix' && intent !== 'ExtractStyle')) {
+            return res.status(400).json({ error: 'Valid generation intent (AdaptRemix or ExtractStyle) is required.' });
+        }
 
         const includeText = String(withTextOverlay ?? 'true') === 'true';
-        const influence = Number(styleInfluence || 50);
+        const control = Number(controlLevel || 50);
 
-        // Prepare Image Buffer
-        const buf: Buffer =
-            sourceImage.buffer ||
-            sourceImage.data ||
-            (typeof sourceImage.arrayBuffer === 'function'
-                ? Buffer.from(await sourceImage.arrayBuffer())
-                : undefined);
 
-        if (!buf) return res.status(400).json({ error: 'Could not read uploaded image.' });
-        const mimeType = sourceImage.mimetype || 'image/png';
+        // --- The Multi-Step Generation Process ---
 
-        // --- The Multi-Step Process ---
-        
-        // The imageQueue wrapper is removed. The steps will now run sequentially.
-        
-        // Step 1: Analyze Style (Now using detailed analysis)
-        console.log("[Pipeline] 1. Analyzing Style (Gemini)...");
-        const detailedAnalysis = await analyzeImageStyle(buf, mimeType);
-        
-        // Step 2: Build Final Prompt (Now using structured analysis)
-        console.log("[Pipeline] 2. Building Optimized Prompt (Gemini)...");
-        const optimizedPrompt = await buildOptimizedPrompt(detailedAnalysis, String(topic), String(details || ''), influence);
-        
-        // Step 3: Generate Image (Now using Imagen 3)
-        console.log("[Pipeline] 3. Generating Image (Imagen 4)...");
+        // Step 2: Build Final Prompt
+        console.log(`[Pipeline] 2. Building Optimized Prompt (Gemini) - Intent: ${intent}...`);
+        const optimizedPrompt = await buildOptimizedPrompt(
+            analysis as ImageAnalysis,
+            String(topic),
+            String(details || ''),
+            intent as GenerationIntent,
+            control
+        );
+
+        // Step 3: Generate Image (Imagen 3)
+        console.log("[Pipeline] 3. Generating Image (Imagen 3)...");
         const imageData = await generateImageFromPrompt(optimizedPrompt);
         const imageUrl = `data:${imageData.mime};base64,${imageData.base64}`;
 
         // Step 4: Generate Social Text
         console.log("[Pipeline] 4. Generating Social Text (Gemini)...");
-        const copy = await generateSocialText(String(topic), String(details || ''), includeText);
+        const copy = await generateSocialText(
+            String(topic),
+            analysis as ImageAnalysis,
+            optimizedPrompt,
+            includeText
+        );
 
         const result = {
             imageUrl,
@@ -328,15 +305,12 @@ export const generateImageContent = async (req: Request, res: Response) => {
     } catch (error: any) {
         console.error('--- FATAL ERROR in /api/generate-image-content ---', error);
         const code = Number(error?.code || error?.status) || 500;
-        
-        // Specific handling for Quota errors (429) after retries are exhausted
+
         let message = error?.message || 'An internal server error occurred.';
-        if (code === 429 || /RESOURCE_EXHAUSTED|Too Many Requests|Quota exceeded|Backoff exhausted/i.test(message)) {
-            // Provide a user-friendly message when the quota is hit, even after retries.
+        if (code === 429 || /RESOURCE_EXHAUSTED|Too Many Requests|Quota exceeded/i.test(message)) {
             message = "The service is currently overloaded or the project quota limit has been reached (429). Please wait 1-2 minutes and try again.";
         }
-        
-        // Ensure the status code is a valid HTTP error code
+
         return res.status(code >= 400 && code < 600 ? code : 500).json({ error: message });
     }
 };
