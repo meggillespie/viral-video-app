@@ -30,7 +30,7 @@ interface ImageAnalysis {
 }
 
 const GEMINI_MODEL = 'gemini-2.5-flash';
-const IMAGEN_MODEL = 'imagen-3.0-generate-001';
+const IMAGEN_MODEL = 'imagen-3.0-fast-generate-001';
 
 type GenerationIntent = 'AdaptRemix' | 'ExtractStyle';
 
