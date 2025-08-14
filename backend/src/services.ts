@@ -11,8 +11,12 @@ dotenv.config();
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const GOOGLE_CLOUD_PROJECT = process.env.GOOGLE_CLOUD_PROJECT || 'vyralize-backend';
-const GOOGLE_CLOUD_LOCATION = process.env.GOOGLE_CLOUD_LOCATION || 'us-east4';
+// This location is used for regional models (Gemini)
+const GOOGLE_CLOUD_LOCATION = process.env.GOOGLE_CLOUD_LOCATION || 'us-central1';
 const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
+
+// Define the Global Endpoint for Imagen 4
+const IMAGEN_GLOBAL_ENDPOINT = 'aiplatform.googleapis.com';
 
 
 // --- Validations (keep your existing checks) ---
@@ -26,13 +30,25 @@ if (!GOOGLE_API_KEY) {
   throw new Error('FATAL: Missing GOOGLE_API_KEY for the Gemini File API.');
 }
 
-// --- Clients (unchanged + Vertex + helpers) ---
+// --- Clients ---
 export const supabaseAdmin = createClient(SUPABASE_URL!, SUPABASE_SERVICE_KEY!);
 
-export const vertexAI = new VertexAI({
+// Client 1: Regional Endpoint (For Gemini, Video Analysis, etc.)
+// Renamed from vertexAI to vertexAIRegional for clarity.
+export const vertexAIRegional = new VertexAI({
   project: GOOGLE_CLOUD_PROJECT,
   location: GOOGLE_CLOUD_LOCATION,
 });
+
+// Client 2: Global Endpoint (For Imagen 4, to avoid regional 429s)
+// We use the apiEndpoint override in the constructor.
+export const vertexAIGlobal = new VertexAI({
+    project: GOOGLE_CLOUD_PROJECT,
+    // Location is still required by the SDK initialization context, even when overriding the endpoint.
+    location: GOOGLE_CLOUD_LOCATION,
+    apiEndpoint: IMAGEN_GLOBAL_ENDPOINT,
+});
+
 
 export const genAI = new GoogleGenAI({ apiKey: GOOGLE_API_KEY! });
 

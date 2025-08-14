@@ -1,8 +1,8 @@
 // File: backend/src/routes/generate-image-content.ts
 
 import { Request, Response } from 'express';
-// Removed Part import as it's no longer used for image uploads here.
-import { vertexAI } from '../services';
+// UPDATE: Import both the regional and global clients
+import { vertexAIRegional, vertexAIGlobal } from '../services';
 
 // Define the interface locally or import if shared. Redefined here for completeness.
 interface ImageAnalysis {
@@ -30,19 +30,22 @@ interface ImageAnalysis {
 }
 
 const GEMINI_MODEL = 'gemini-2.5-flash';
-const IMAGEN_MODEL = 'imagen-3.0-fast-generate-001';
+
+// UPDATE: Using the requested Imagen 4 model
+const IMAGEN_MODEL = 'imagen-4.0-generate-preview-06-06';
+
 
 type GenerationIntent = 'AdaptRemix' | 'ExtractStyle';
 
 
 // ============================================================================
-// Step 2: Generate Optimized Image Prompt (Gemini 2.5 Flash)
+// Step 2: Generate Optimized Image Prompt (Gemini 2.5 Flash - Regional)
 // ============================================================================
 
-// Prompt Templates based on the PDF (Step 2, Case A and B)
+// Prompt Templates (Updated references to Imagen 4)
 
 const PROMPT_TEMPLATE_ADAPT_REMIX = `
-You are an expert prompt engineer for the text-to-image model Imagen 3. Your task is to synthesize information to create a new, highly effective image prompt.
+You are an expert prompt engineer for the text-to-image model Imagen 4. Your task is to synthesize information to create a new, highly effective image prompt.
 
 **INPUTS:**
 1. **Image Analysis JSON:** \${ANALYSIS_JSON}
@@ -58,11 +61,11 @@ You are an expert prompt engineer for the text-to-image model Imagen 3. Your tas
 - The Creative Freedom Level dictates how much you should deviate from the original scene. 0.0 means a very faithful adaptation. 1.0 means a highly creative, almost abstract reinterpretation that still includes the core subjects and topic.
 - **CRITICAL:** The final image must contain absolutely NO TEXT, WORDS, OR LETTERS. Do not include any instructions that might generate text.
 
-Your output must be a single, concise, and descriptive prompt paragraph for Imagen 3, and nothing else.
+Your output must be a single, concise, and descriptive prompt paragraph for Imagen 4, and nothing else.
 `;
 
 const PROMPT_TEMPLATE_EXTRACT_STYLE = `
-You are an expert prompt engineer for the text-to-image model Imagen 3. Your task is to synthesize information to create a new, highly effective image prompt.
+You are an expert prompt engineer for the text-to-image model Imagen 4. Your task is to synthesize information to create a new, highly effective image prompt.
 
 **INPUTS:**
 1. **Image Analysis JSON:** \${ANALYSIS_JSON}
@@ -78,7 +81,7 @@ You are an expert prompt engineer for the text-to-image model Imagen 3. Your tas
 - The Style Adherence Level dictates how strictly you must follow these style rules. 0.0 is loosely inspired. 1.0 is a near-perfect stylistic replication.
 - **CRITICAL:** The final image must contain absolutely NO TEXT, WORDS, OR LETTERS. Do not include any instructions that might generate text.
 
-Your output must be a single, concise, and descriptive prompt paragraph for Imagen 3, and nothing else.
+Your output must be a single, concise, and descriptive prompt paragraph for Imagen 4, and nothing else.
 `;
 
 
@@ -89,7 +92,8 @@ async function buildOptimizedPrompt(
     intent: GenerationIntent,
     controlLevel: number // Expecting 0-100 from frontend
 ): Promise<string> {
-    const model = vertexAI.getGenerativeModel({ model: GEMINI_MODEL });
+    // UPDATE: Use the Regional client for Gemini calls
+    const model = vertexAIRegional.getGenerativeModel({ model: GEMINI_MODEL });
 
     const analysisJsonString = JSON.stringify(analysis);
     // Normalize control level to 0.0 - 1.0 scale required by the prompt
@@ -126,13 +130,17 @@ async function buildOptimizedPrompt(
 
 
 // ============================================================================
-// Step 3: Generate Image (Imagen 3)
+// Step 3: Generate Image (Imagen 4 via Global Endpoint)
 // ============================================================================
-// (This function remains unchanged as it was working correctly)
-async function generateImageFromPrompt(finalImagePrompt: string): Promise<{ base64: string, mime: string }> {
-    const model = vertexAI.getGenerativeModel({ model: IMAGEN_MODEL });
 
-    console.log(`Starting image generation with ${IMAGEN_MODEL}...`);
+async function generateImageFromPrompt(finalImagePrompt: string): Promise<{ base64: string, mime: string }> {
+
+    // UPDATE: Use the Global client for Imagen calls
+    const model = vertexAIGlobal.getGenerativeModel({
+        model: IMAGEN_MODEL
+    });
+
+    console.log(`Starting image generation with ${IMAGEN_MODEL} via Global Endpoint...`);
 
     const gen = await model.generateContent(finalImagePrompt);
 
@@ -152,7 +160,7 @@ async function generateImageFromPrompt(finalImagePrompt: string): Promise<{ base
 
 
 // ============================================================================
-// Step 4: Generate Social Text (Gemini 2.5 Flash)
+// Step 4: Generate Social Text (Gemini 2.5 Flash - Regional)
 // ============================================================================
 
 // Updated Prompt based on the PDF (Step 3) to use the structured analysis data
@@ -182,7 +190,8 @@ async function generateSocialText(
     finalImagePrompt: string,
     headlineWanted: boolean
 ) {
-    const model = vertexAI.getGenerativeModel({ model: GEMINI_MODEL });
+    // UPDATE: Use the Regional client for Gemini calls
+    const model = vertexAIRegional.getGenerativeModel({ model: GEMINI_MODEL });
 
     // Extract relevant info from analysis for the prompt
     const subjectNames = analysis.subjects.map(s => s.name).join(', ') || 'N/A';
@@ -269,8 +278,8 @@ export const generateImageContent = async (req: Request, res: Response) => {
             control
         );
 
-        // Step 3: Generate Image (Imagen 3)
-        console.log("[Pipeline] 3. Generating Image (Imagen 3)...");
+        // Step 3: Generate Image (Imagen 4)
+        console.log("[Pipeline] 3. Generating Image (Imagen 4)...");
         const imageData = await generateImageFromPrompt(optimizedPrompt);
         const imageUrl = `data:${imageData.mime};base64,${imageData.base64}`;
 

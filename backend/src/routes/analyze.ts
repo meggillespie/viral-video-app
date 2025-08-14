@@ -1,7 +1,8 @@
-// File: backend/src/routes/analyze.ts 
+// File: backend/src/routes/analyze.ts
 import { Request, Response } from 'express';
 import { Part } from '@google-cloud/vertexai';
-import { vertexAI } from '../services';
+// UPDATE: Import the regional client
+import { vertexAIRegional } from '../services';
 
 
 const ANALYSIS_PROMPT = `
@@ -49,8 +50,9 @@ export const analyzeRoute = async (req: Request, res: Response) => {
 
         console.log('Starting Analysis via Vertex AI...');
 
-        const generativeModel = vertexAI.getGenerativeModel({
-            model: 'gemini-2.5-flash', 
+        // UPDATE: Use the Regional client
+        const generativeModel = vertexAIRegional.getGenerativeModel({
+            model: 'gemini-2.5-flash',
         });
 
         const result = await generativeModel.generateContent({
@@ -59,7 +61,7 @@ export const analyzeRoute = async (req: Request, res: Response) => {
                 responseMimeType: "application/json",
             }
         });
-        
+
         const response = result.response;
         const analysisText = response.candidates?.[0]?.content?.parts?.[0]?.text;
 

@@ -2,7 +2,8 @@
 
 import { Request, Response } from 'express';
 import { Part } from '@google-cloud/vertexai';
-import { vertexAI } from '../services';
+// UPDATE: Import the regional client
+import { vertexAIRegional } from '../services';
 
 const GEMINI_MODEL = 'gemini-2.5-flash';
 
@@ -91,7 +92,8 @@ export const analyzeImageRoute = async (req: Request, res: Response) => {
         console.log("[Image Analysis] Starting Analysis via Vertex AI...");
 
         // Configure the model for JSON output.
-        const model = vertexAI.getGenerativeModel({
+        // UPDATE: Use the Regional client
+        const model = vertexAIRegional.getGenerativeModel({
             model: GEMINI_MODEL,
             generationConfig: {
                 responseMimeType: "application/json",

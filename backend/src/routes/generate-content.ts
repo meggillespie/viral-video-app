@@ -1,7 +1,8 @@
 // File: backend/src/routes/generate-content.ts
 
 import { Request, Response } from 'express';
-import { vertexAI } from '../services'; 
+// UPDATE: Import the regional client
+import { vertexAIRegional } from '../services';
 
 const GEMINI_MODEL = 'gemini-2.5-flash';
 
@@ -68,7 +69,8 @@ export const generateContentRoute = async (req: Request, res: Response) => {
                 .replace('${USER_TOPIC}', topic);
         }
 
-        const generativeModel = vertexAI.getGenerativeModel({
+        // UPDATE: Use the Regional client
+        const generativeModel = vertexAIRegional.getGenerativeModel({
             model: GEMINI_MODEL,
         });
 
@@ -78,7 +80,7 @@ export const generateContentRoute = async (req: Request, res: Response) => {
                 responseMimeType: isJsonOutput ? "application/json" : "text/plain",
             }
         });
-        
+
         const response = result.response;
         const generationText = response.candidates?.[0]?.content?.parts?.[0]?.text;
 
