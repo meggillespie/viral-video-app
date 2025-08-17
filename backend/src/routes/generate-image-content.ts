@@ -243,7 +243,7 @@ async function generateSocialText(
 // ============================================================================
 // Main Route Handler (Enhanced Error Logging)
 // ============================================================================
-export const generateImageContent = async (req: Request, res: Response) => {
+export const generateImageContentRoute = async (req: Request, res: Response) => {
     let currentStep = "Initialization"; // Track the step for better error reporting
     try {
         const {

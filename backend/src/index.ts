@@ -11,7 +11,8 @@ import { generateContentRoute } from './routes/generate-content';
 import { createSignedUrlRoute, transferToGeminiRoute } from './routes/storage';
 import { getVideoDurationRoute } from './routes/video';
 import { clerkWebhookRoute } from './routes/clerk-webhook';
-import { generateImageContent } from './routes/generate-image-content';
+import { generateImageContentRoute } from './routes/generate-image-content';
+// import { generateImageContentRoute, generateStoryboardImageRoute } from './routes/generate-image-content';
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '8080', 10);
@@ -56,7 +57,6 @@ app.post('/api/create-signed-url', createSignedUrlRoute);
 app.post('/api/transfer-to-gemini', transferToGeminiRoute);
 
 // Image Routes
-
 // Image Analysis (Multipart/Form-Data)
 // FIX: Apply the Multer middleware directly to the route where the upload now occurs.
 // 'sourceImage' must match the field name used in the frontend FormData.
@@ -64,7 +64,8 @@ app.post('/api/analyze-image', upload.single('sourceImage'), analyzeImageRoute);
 
 // Image Generation (JSON)
 // This route now expects JSON data (analysis results, topic, intent).
-app.post('/api/generate-image-content', generateImageContent);
+app.post('/api/generate-image-content', generateImageContentRoute);
+// app.post('/api/generate-storyboard-image', generateStoryboardImageRoute);
 
 
 app.get('/', (req, res) => {

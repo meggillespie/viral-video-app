@@ -57,11 +57,23 @@ interface ImageAnalysisResult {
 }
 
 type ImageGenerationIntent = 'AdaptRemix' | 'ExtractStyle';
+type AspectRatio = '1:1' | '4:5' | '9:16';
 
 
 // Icons & UI Elements (unchanged)
 const Spinner = () => ( <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> );
-const Logo = () => ( <svg className="w-8 h-8 text-[#007BFF]" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path></svg> );
+// MODIFIED: Logo now uses an SVG gradient
+const Logo = () => (
+    <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style={{stopColor: '#007BFF'}} />
+                <stop offset="100%" style={{stopColor: '#E600FF'}} />
+            </linearGradient>
+        </defs>
+        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="url(#logoGradient)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
+    </svg>
+);
 const CopyIcon = () => ( <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path></svg> );
 // Icons for Tabs
 const VideoIcon = () => (<svg className="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 10l4.553 2.276A1 1 0 0120 13.224v2.552a1 1 0 01-.447.848L15 18.9V10zM5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>);
@@ -125,7 +137,8 @@ function VyralizePlatformManager() {
     const { user } = useUser();
 
     // Tab State
-    const [activeTab, setActiveTab] = useState<'video' | 'image'>('image'); // Defaulting to image
+    // MODIFIED: Defaulting to video tab
+    const [activeTab, setActiveTab] = useState<'video' | 'image'>('video');
 
     // Shared User/Credit State
     const [creditBalance, setCreditBalance] = useState<number | null>(null);
@@ -163,7 +176,14 @@ function VyralizePlatformManager() {
         <div className={`w-full ${containerWidthClass} mx-auto bg-[rgba(38,38,42,0.6)] rounded-2xl border border-[rgba(255,255,255,0.1)] shadow-2xl backdrop-blur-xl overflow-hidden transition-all duration-500`}>
             <div className="p-6 sm:p-8">
                 <div className="flex items-center justify-between mb-8">
-                    <div className="flex items-center gap-3"><Logo /><h1 className="text-2xl font-bold text-brand-light">Vyralize</h1></div>
+                    {/* MODIFIED: Updated branding with gradient text and tagline */}
+                    <div className="flex items-center">
+                        <div className="flex items-center gap-3">
+                            <Logo />
+                            <h1 className="text-2xl font-bold bg-gradient-to-r from-[#007BFF] to-[#E600FF] bg-clip-text text-transparent">Vyralize AI</h1>
+                        </div>
+                         <p className="hidden sm:block text-xs text-gray-400 border-l border-gray-600 ml-3 pl-3">Create What Captivates</p>
+                    </div>
                     <div className="text-sm text-[#8A8A8E] bg-black/20 border border-[rgba(255,255,255,0.1)] px-3 py-1 rounded-full">{isFetchingCredits ? '...' : creditBalance ?? 0} Credits</div>
                 </div>
 
@@ -470,6 +490,10 @@ function ImageInputForm({ onAnalysisComplete, creditBalance, isFetchingCredits, 
     );
 }
 
+// --- Icons for Aspect Ratio ---
+const Icon1x1 = ({ className }: { className?: string }) => (<svg className={className} viewBox="0 0 20 20" fill="currentColor"><rect width="20" height="20" rx="2"></rect></svg>);
+const Icon4x5 = ({ className }: { className?: string }) => (<svg className={className} viewBox="0 0 16 20" fill="currentColor"><rect width="16" height="20" rx="2"></rect></svg>);
+const Icon9x16 = ({ className }: { className?: string }) => (<svg className={className} viewBox="0 0 9 16" fill="currentColor"><rect width="9" height="16" rx="1.5"></rect></svg>);
 
 // --- Image Analysis Display & Intent Selection (Step 2: Configuration and Generation API Call) ---
 
@@ -486,6 +510,8 @@ function ImageAnalysisDisplay({ analysis, topic, details, imagePreview, onGenera
     const [intent, setIntent] = useState<ImageGenerationIntent>('AdaptRemix');
     const [controlLevel, setControlLevel] = useState(50);
     const [withTextOverlay, setWithTextOverlay] = useState(true);
+    // NEW: State for Aspect Ratio
+    const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
 
     // Loading/Error State
     const [isLoading, setIsLoading] = useState(false);
@@ -513,7 +539,8 @@ function ImageAnalysisDisplay({ analysis, topic, details, imagePreview, onGenera
                     analysis: analysis,
                     intent: intent,
                     controlLevel: controlLevel,
-                    withTextOverlay: withTextOverlay
+                    withTextOverlay: withTextOverlay,
+                    aspectRatio: aspectRatio, // MODIFIED: Pass aspect ratio to backend
                 }),
             });
 
@@ -550,6 +577,14 @@ function ImageAnalysisDisplay({ analysis, topic, details, imagePreview, onGenera
         label: 'Style Adherence',
         minLabel: 'Loosely Inspired',
         maxLabel: 'Strictly Follow Style'
+    };
+
+    // Helper for aspect ratio button classes
+    const getAspectRatioButtonClass = (ratio: AspectRatio) => {
+        const baseClass = "flex flex-col items-center gap-2 p-3 rounded-lg cursor-pointer transition-colors";
+        return aspectRatio === ratio
+            ? `${baseClass} bg-[#E600FF]/20 text-[#E600FF] border border-[#E600FF]`
+            : `${baseClass} bg-black/30 hover:bg-black/50 border border-transparent`;
     };
 
     return (
@@ -606,6 +641,26 @@ function ImageAnalysisDisplay({ analysis, topic, details, imagePreview, onGenera
                         </div>
                     </div>
                 </div>
+
+                {/* NEW: Aspect Ratio Selection */}
+                <div>
+                    <label className="text-lg font-medium text-white mb-4 block text-center">Select Aspect Ratio</label>
+                    <div className="flex justify-center items-center gap-4">
+                        <button type="button" onClick={() => setAspectRatio('1:1')} className={getAspectRatioButtonClass('1:1')}>
+                            <Icon1x1 className="h-8 w-8" />
+                            <span className="text-xs font-semibold">1:1</span>
+                        </button>
+                         <button type="button" onClick={() => setAspectRatio('4:5')} className={getAspectRatioButtonClass('4:5')}>
+                            <Icon4x5 className="h-8 w-8" />
+                            <span className="text-xs font-semibold">4:5</span>
+                        </button>
+                         <button type="button" onClick={() => setAspectRatio('9:16')} className={getAspectRatioButtonClass('9:16')}>
+                            <Icon9x16 className="h-8 w-8" />
+                            <span className="text-xs font-semibold">9:16</span>
+                        </button>
+                    </div>
+                </div>
+
 
                 {/* Step 5: The "Creative Control" Slider (Repurposed Slider from PDF) */}
                 <div className="max-w-3xl mx-auto">
@@ -738,7 +793,7 @@ function ImageGenerationOutput({ result, onReset }: ImageGenerationOutputProps) 
             <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-white">Social Media Posts</h3>
                 {renderPost("LinkedIn", result.posts.linkedin)}
-                {renderPost("Twitter (X)", result.posts.twitter)}
+                {renderPost("X", result.posts.twitter)}
                 {renderPost("Instagram", result.posts.instagram)}
                 {renderPost("Facebook", result.posts.facebook)}
             </div>
@@ -1196,9 +1251,7 @@ function VideoGenerationOutput({ content, type, onReset }: VideoGenerationOutput
                                 </button>
                             </div>
                         ))}
-                        <button className="w-full mt-4 px-4 py-2 bg-gray-500/50 text-gray-300 rounded-lg font-semibold cursor-not-allowed" disabled>
-                            Send to Google VEO (Coming Soon)
-                        </button>
+                        {/* REMOVED: "Send to Google VEO" button was here */}
                     </div>
                 ) : (
                     // Script Display
