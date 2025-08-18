@@ -66,17 +66,48 @@ const Icon1x1 = ({ className }: { className?: string }) => (<svg className={clas
 const Icon4x5 = ({ className }: { className?: string }) => (<svg className={className} viewBox="0 0 16 20" fill="currentColor"><rect width="16" height="20" rx="2"></rect></svg>);
 const Icon9x16 = ({ className }: { className?: string }) => (<svg className={className} viewBox="0 0 9 16" fill="currentColor"><rect width="9" height="16" rx="1.5"></rect></svg>);
 
-const MarkdownRenderer = ({ text }: { text: string }) => {
-    const html = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>').replace(/(\r\n|\n|\r)/g, '<br>');
-    return <div className="whitespace-pre-wrap font-mono text-sm text-brand-light/80 leading-relaxed" dangerouslySetInnerHTML={{ __html: html }} />;
+
+// MODIFIED: New helper function to convert simple markdown to styled HTML
+const convertMarkdownToHtml = (markdown: string): string => {
+    if (!markdown) return "";
+    const lines = markdown.split('\n');
+    const htmlLines = lines.map(line => {
+        // Make headers and bold text stand out
+        let processedLine = line.replace(/\*\*(.*?)\*\*/g, '<strong class="text-white font-medium">$1</strong>');
+        
+        // Handle bullet points
+        if (processedLine.trim().startsWith('* ')) {
+            const content = processedLine.trim().substring(2);
+            // Use a flexbox layout for the bullet point for better alignment and wrapping
+            return `<div class="flex flex-row mt-1"><span class="mr-3">&bull;</span><div class="flex-1">${content}</div></div>`;
+        }
+        
+        // Add vertical spacing for non-bullet lines that aren't empty
+        if (processedLine.trim() !== "") {
+            return `<div class="mt-3">${processedLine}</div>`;
+        }
+
+        return processedLine; // Return empty lines as they are to preserve paragraph breaks
+    });
+    // Join without extra breaks, as divs provide their own spacing
+    return htmlLines.join('');
 };
 
+const MarkdownRenderer = ({ text }: { text: string }) => {
+    const html = convertMarkdownToHtml(text);
+    return <div className="font-mono text-sm text-brand-light/80 leading-relaxed" dangerouslySetInnerHTML={{ __html: html }} />;
+};
+
+// MODIFIED: handleCopy now uses the centralized markdown converter
 const handleCopy = async (textToCopy: string, isFormatted: boolean = false, setCopyStatus: (status: string) => void, feedbackId: string = 'global') => {
     try {
         if (isFormatted) {
-            const html = textToCopy.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>').replace(/(\r\n|\n|\r)/g, '<br>');
-            const blobHtml = new Blob([html], { type: 'text/html' });
-            const blobPlain = new Blob([textToCopy.replace(/\*\*|\*/g, '')], { type: 'text/plain' });
+            const html = convertMarkdownToHtml(textToCopy);
+            const plainText = textToCopy.replace(/\*\*/g, "").replace(/^\s*\*\s/gm, "• ");
+            
+            const blobHtml = new Blob([`<div style="font-family: sans-serif; color: #333;">${html}</div>`], { type: 'text/html' });
+            const blobPlain = new Blob([plainText], { type: 'text/plain' });
+            
             await navigator.clipboard.write([new ClipboardItem({ 'text/html': blobHtml, 'text/plain': blobPlain })]);
         } else {
             await navigator.clipboard.writeText(textToCopy);
@@ -235,9 +266,8 @@ function ImageInputForm({ onAnalysisComplete, creditBalance, isFetchingCredits, 
     const [details, setDetails] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
-    const [isDragging, setIsDragging] = useState(false); // MODIFIED: Added for drag state
+    const [isDragging, setIsDragging] = useState(false);
 
-    // MODIFIED: Centralized file handling for both drop and change events
     const handleFile = (file: File | undefined | null) => {
         if (file && file.type.startsWith('image/')) {
             setSourceImage(file);
@@ -252,7 +282,6 @@ function ImageInputForm({ onAnalysisComplete, creditBalance, isFetchingCredits, 
     
     const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => handleFile(e.target.files?.[0]);
 
-    // MODIFIED: Added drag and drop handlers to align with Video uploader
     const handleDrop = useCallback((e: DragEvent<HTMLDivElement>) => {
         e.preventDefault(); e.stopPropagation(); setIsDragging(false);
         handleFile(e.dataTransfer.files?.[0]);
@@ -296,11 +325,9 @@ function ImageInputForm({ onAnalysisComplete, creditBalance, isFetchingCredits, 
 
     return (
         <form onSubmit={handleAnalyze} className="space-y-6 max-w-2xl mx-auto">
-            {/* REMOVED: "Image Studio Inputs" h2 was here */}
             {error && (<div className="bg-red-500/20 border border-red-500/30 text-red-300 px-4 py-3 rounded-lg text-sm" role="alert"><strong className="font-bold">Error: </strong><span>{error}</span></div>)}
             <div>
                 <label className="text-sm font-medium text-[#8A8A8E] mb-2 block">1. Upload Source Image</label>
-                {/* MODIFIED: Uploader styling now matches Video uploader */}
                 <div onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={handleDragLeave} className={`bg-black/30 border-2 border-dashed ${isDragging ? 'border-[#E600FF]' : 'border-brand-gray/40'} rounded-lg p-6 text-center cursor-pointer hover:border-[#E600FF] transition-colors group relative`}>
                     <input type="file" id="imageFile" onChange={handleImageChange} accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-0" disabled={isLoading} />
                     {imagePreview ? (
@@ -322,7 +349,6 @@ function ImageInputForm({ onAnalysisComplete, creditBalance, isFetchingCredits, 
                 <textarea id="image-details" rows={3} value={details} onChange={e => setDetails(e.target.value)} className="w-full bg-black/20 border border-[rgba(255,255,255,0.1)] rounded-md px-4 py-2.5 text-brand-light placeholder-[#8A8A8E] focus:ring-2 focus:ring-[#E600FF] focus:outline-none" placeholder="e.g., Recent breakthroughs in diagnostics" disabled={isLoading} />
             </div>
             <div className="pt-4">
-                {/* MODIFIED: Button now uses gradient */}
                 <button type="submit" disabled={isLoading || isFetchingCredits} className="w-full px-6 py-3 font-bold text-white bg-gradient-to-r from-[#007BFF] to-[#E600FF] rounded-lg transition-opacity hover:opacity-90 shadow-lg hover:shadow-[0_0_20px_0_rgba(150,50,255,0.3)] focus:outline-none focus:ring-4 focus:ring-purple-500/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center">
                     Analyze & Continue (1 Credit)
                 </button>
@@ -420,7 +446,6 @@ function ImageAnalysisDisplay({ analysis, topic, details, imagePreview, onGenera
                     </label>
                 </div>
                 <div className="pt-4 flex justify-center">
-                    {/* MODIFIED: Button now uses gradient */}
                     <button type="submit" disabled={isLoading} className="px-12 py-3 font-bold text-white bg-gradient-to-r from-[#007BFF] to-[#E600FF] rounded-lg transition-opacity hover:opacity-90 shadow-lg hover:shadow-[0_0_20px_0_rgba(150,50,255,0.3)] focus:outline-none focus:ring-4 focus:ring-purple-500/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center">
                         {isLoading ? <><Spinner /> Generating Content...</> : 'Generate Image & Posts'}
                     </button>
@@ -473,8 +498,11 @@ function ImageGenerationOutput({ result, onReset }: ImageGenerationOutputProps) 
                         <svg className="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                     </button>
                 </div>
-                <button onClick={onReset} className="w-full px-6 py-3 font-bold text-white bg-gray-600 rounded-lg hover:bg-gray-700 transition-all duration-300 mt-4">
-                    Start New Analysis (1 Credit)
+                {/* MODIFIED: Button uses new gradient outline style */}
+                 <button onClick={onReset} className="w-full p-px font-bold text-white bg-gradient-to-r from-[#007BFF] to-[#E600FF] rounded-lg group">
+                    <span className="block w-full bg-[#1C1C1E] group-hover:bg-opacity-80 transition-all duration-300 px-6 py-3 rounded-md">
+                        Start New Analysis (1 Credit)
+                    </span>
                 </button>
             </div>
             <div className="space-y-4">
@@ -631,7 +659,6 @@ function VideoInputForm({ onAnalysisComplete, creditBalance, isFetchingCredits, 
                 <input id="new-topic" type="text" value={topic} onChange={e => setTopic(e.target.value)} className="w-full bg-black/20 border border-[rgba(255,255,255,0.1)] rounded-md px-4 py-2.5 text-brand-light placeholder-[#8A8A8E] focus:ring-2 focus:ring-[#007BFF] focus:outline-none" placeholder="e.g., 'The Future of AI Assistants'" disabled={isLoading} />
             </div>
             <div className="pt-4">
-                {/* MODIFIED: Button now uses gradient */}
                 <button type="submit" disabled={isLoading || isFetchingCredits} className="w-full px-6 py-3 font-bold text-white bg-gradient-to-r from-[#007BFF] to-[#E600FF] rounded-lg transition-opacity hover:opacity-90 shadow-lg hover:shadow-[0_0_20px_0_rgba(150,50,255,0.3)] focus:outline-none focus:ring-4 focus:ring-purple-500/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center">
                     Analyze Video (1 Credit)
                 </button>
@@ -680,7 +707,6 @@ function VideoAnalysisDisplay({ analysis, topic, onGenerationComplete }: VideoAn
             </div>
             {error && (<div className="bg-red-500/20 border border-red-500/30 text-red-300 px-4 py-3 rounded-lg text-sm" role="alert"><strong className="font-bold">Error: </strong><span>{error}</span></div>)}
             <div className="pt-4 flex flex-col sm:flex-row gap-4">
-                {/* MODIFIED: Buttons now use gradient */}
                 <button onClick={() => handleGenerate('Script')} disabled={isLoading} className="flex-1 px-6 py-3 font-bold text-white bg-gradient-to-r from-[#007BFF] to-[#E600FF] rounded-lg transition-opacity hover:opacity-90 shadow-lg hover:shadow-[0_0_20px_0_rgba(150,50,255,0.3)] disabled:opacity-50 flex items-center justify-center">
                     {isLoading && loadingType === 'Script' ? <Spinner /> : null} Generate Script
                 </button>
@@ -704,7 +730,7 @@ function VideoGenerationOutput({ content, type, onReset }: VideoGenerationOutput
     return (
         <div className="space-y-6">
             <h2 className="text-2xl font-bold text-brand-light">Generation Complete: {type}</h2>
-            <div className="mt-6 bg-black/20 border border-[rgba(255,255,255,0.1)] rounded-lg p-4">
+            <div className="mt-6 bg-black/20 border border-[rgba(255,255,255,0.1)] rounded-lg p-6">
                 {isPromptArray ? (
                     <div className="space-y-4">
                         {content.map((prompt, index) => (
@@ -727,8 +753,11 @@ function VideoGenerationOutput({ content, type, onReset }: VideoGenerationOutput
                     </div>
                 )}
             </div>
-            <button onClick={onReset} className="w-full px-6 py-3 font-bold text-white bg-gray-600 rounded-lg hover:bg-gray-700 transition-all duration-300">
-                Start New Analysis (1 Credit)
+             {/* MODIFIED: Button uses new gradient outline style */}
+            <button onClick={onReset} className="w-full p-px font-bold text-white bg-gradient-to-r from-[#007BFF] to-[#E600FF] rounded-lg group">
+                <span className="block w-full bg-[#1C1C1E] group-hover:bg-opacity-80 transition-all duration-300 px-6 py-3 rounded-md">
+                    Start New Analysis (1 Credit)
+                </span>
             </button>
         </div>
     );
