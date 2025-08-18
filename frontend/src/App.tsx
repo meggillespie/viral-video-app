@@ -119,7 +119,7 @@ export default function App() {
                         <div className="text-center p-16 bg-[rgba(38,38,42,0.6)] rounded-2xl border border-[rgba(255,255,255,0.1)] shadow-2xl backdrop-blur-xl">
                             <h2 className="text-3xl font-bold mb-4">Welcome to Vyralize</h2>
                             <p className="text-[#8A8A8E] my-4">Please sign in to continue.</p>
-                            <SignInButton mode="modal"><button className="px-6 py-2 bg-[#007BFF] text-white font-semibold rounded-lg hover:bg-[#0056b3] transition-colors">Sign In</button></SignInButton>
+                            <SignInButton mode="modal"><button className="px-6 py-2 bg-gradient-to-r from-[#007BFF] to-[#E600FF] text-white font-semibold rounded-lg hover:opacity-90 transition-opacity">Sign In</button></SignInButton>
                         </div>
                     </SignedOut>
                 </main>
@@ -357,22 +357,35 @@ function ImageInputForm({ onAnalysisComplete, creditBalance, isFetchingCredits, 
     // Loading/Error State
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+    const [isDragging, setIsDragging] = useState(false);
 
-    const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
+    const handleFileChange = (file: File | null) => {
         if (file && file.type.startsWith('image/')) {
             setSourceImage(file);
-            // Create a preview URL
             const reader = new FileReader();
-            reader.onloadend = () => {
-                setImagePreview(reader.result as string);
-            };
+            reader.onloadend = () => { setImagePreview(reader.result as string); };
             reader.readAsDataURL(file);
             setError('');
-        } else {
+        } else if (file) {
             setError('Please upload a valid image file.');
         }
     };
+
+    const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+        handleFileChange(e.target.files?.[0] || null);
+    };
+
+    const handleDrop = useCallback((e: DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+        const file = e.dataTransfer.files?.[0];
+        if (file) handleFileChange(file);
+    }, []);
+
+    const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }, []);
+    const handleDragLeave = useCallback((e: DragEvent<HTMLDivElement>) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); }, []);
+
 
     // Handle Analyze (Step 1 of the new workflow)
     const handleAnalyze = async (e: React.FormEvent) => {
@@ -444,22 +457,19 @@ function ImageInputForm({ onAnalysisComplete, creditBalance, isFetchingCredits, 
     // Input Form UI (Centered layout for the input phase)
     return (
         <form onSubmit={handleAnalyze} className="space-y-6 max-w-2xl mx-auto">
-            <h2 className="text-xl font-semibold text-white">Image Studio Inputs</h2>
-
             {error && (<div className="bg-red-500/20 border border-red-500/30 text-red-300 px-4 py-3 rounded-lg text-sm" role="alert"><strong className="font-bold">Error: </strong><span>{error}</span></div>)}
 
             {/* 1. Image Uploader */}
             <div>
                 <label className="text-sm font-medium text-[#8A8A8E] mb-2 block">1. Upload Source Image</label>
-                {/* Using the Purple accent (#E600FF) for hover effects */}
-                <div className="bg-black/30 border-2 border-dashed border-brand-gray/40 rounded-lg p-6 text-center cursor-pointer hover:border-[#E600FF] transition-colors group relative h-48 flex items-center justify-center">
-                    <input type="file" id="imageFile" onChange={handleImageChange} accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-0" disabled={isLoading} />
+                <div onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={handleDragLeave} className={`bg-black/30 border-2 border-dashed ${isDragging ? 'border-[#E600FF]' : 'border-brand-gray/40'} rounded-lg p-6 text-center cursor-pointer hover:border-[#E600FF] transition-colors group relative flex items-center justify-center min-h-[12rem]`}>
+                    <input type="file" id="imageFile" onChange={handleInputChange} accept="image/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" disabled={isLoading} />
                     {imagePreview ? (
-                        <img src={imagePreview} alt="Preview" className="max-h-full max-w-full object-contain"/>
+                        <img src={imagePreview} alt="Preview" className="max-h-full max-w-full object-contain rounded-md relative z-0"/>
                     ) : (
-                        <div className="relative z-10 pointer-events-none flex flex-col items-center">
-                            <ImageIcon />
-                            <p className="mt-2 text-sm text-[#8A8A8E]">Click or Drag & Drop</p>
+                        <div className="relative z-0 pointer-events-none flex flex-col items-center">
+                            <svg className="mx-auto h-12 w-12 text-[#8A8A8E] group-hover:text-[#E600FF] transition-colors" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path></svg>
+                            <p className="mt-2 text-sm text-[#8A8A8E]">Drag & Drop or <span className="font-semibold text-[#E600FF]">Click to upload</span></p>
                         </div>
                     )}
                 </div>
@@ -468,7 +478,6 @@ function ImageInputForm({ onAnalysisComplete, creditBalance, isFetchingCredits, 
             {/* 2. Topic */}
             <div>
                 <label htmlFor="image-topic" className="text-sm font-medium text-[#8A8A8E] mb-2 block">2. New Content Topic</label>
-                {/* Using the Purple accent (#E600FF) for focus rings */}
                 <input id="image-topic" type="text" value={topic} onChange={e => setTopic(e.target.value)} className="w-full bg-black/20 border border-[rgba(255,255,255,0.1)] rounded-md px-4 py-2.5 text-brand-light placeholder-[#8A8A8E] focus:ring-2 focus:ring-[#E600FF] focus:outline-none" placeholder="e.g., 'AI in Healthcare'" disabled={isLoading} />
             </div>
 
@@ -478,11 +487,10 @@ function ImageInputForm({ onAnalysisComplete, creditBalance, isFetchingCredits, 
                 <textarea id="image-details" rows={3} value={details} onChange={e => setDetails(e.target.value)} className="w-full bg-black/20 border border-[rgba(255,255,255,0.1)] rounded-md px-4 py-2.5 text-brand-light placeholder-[#8A8A8E] focus:ring-2 focus:ring-[#E600FF] focus:outline-none" placeholder="e.g., Recent breakthroughs in diagnostics" disabled={isLoading} />
             </div>
 
-            {/* Analyze Button (Using Purple Accent) */}
+            {/* Analyze Button (Using Gradient) */}
             <div className="pt-4">
                 <button type="submit" disabled={isLoading || isFetchingCredits}
-                    // Using the Purple accent for the primary action in this tab
-                    className="w-full px-6 py-3 font-bold text-white bg-[#E600FF] rounded-lg hover:bg-[#b300c7] transition-all duration-300 shadow-lg hover:shadow-[0_0_20px_0_rgba(230,0,255,0.3)] focus:outline-none focus:ring-4 focus:ring-[#E600FF]/50 disabled:bg-[#b300c7]/50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center">
+                    className="w-full px-6 py-3 font-bold text-white bg-gradient-to-r from-[#007BFF] to-[#E600FF] rounded-lg hover:opacity-90 transition-all duration-300 shadow-lg hover:shadow-[0_0_20px_0_rgba(128,0,255,0.4)] focus:outline-none focus:ring-4 focus:ring-[#E600FF]/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center">
                     Analyze & Continue (1 Credit)
                 </button>
             </div>
@@ -699,7 +707,7 @@ function ImageAnalysisDisplay({ analysis, topic, details, imagePreview, onGenera
                 {/* Generate Button */}
                 <div className="pt-4 flex justify-center">
                     <button type="submit" disabled={isLoading}
-                        className="px-12 py-3 font-bold text-white bg-[#E600FF] rounded-lg hover:bg-[#b300c7] transition-all duration-300 shadow-lg hover:shadow-[0_0_20px_0_rgba(230,0,255,0.3)] focus:outline-none focus:ring-4 focus:ring-[#E600FF]/50 disabled:bg-[#b300c7]/50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center">
+                        className="px-12 py-3 font-bold text-white bg-gradient-to-r from-[#007BFF] to-[#E600FF] rounded-lg hover:opacity-90 transition-all duration-300 shadow-lg hover:shadow-[0_0_20px_0_rgba(128,0,255,0.4)] focus:outline-none focus:ring-4 focus:ring-[#E600FF]/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center">
                         {isLoading ? <Spinner /> : null}
                         {isLoading ? 'Generating Content...' : 'Generate Image & Posts'}
                     </button>
@@ -780,13 +788,15 @@ function ImageGenerationOutput({ result, onReset }: ImageGenerationOutputProps) 
                         <svg className="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                     </button>
                 </div>
-
-                <button
-                    onClick={onReset}
-                    className="w-full px-6 py-3 font-bold text-white bg-gray-600 rounded-lg hover:bg-gray-700 transition-all duration-300 mt-4"
-                >
-                    Start New Analysis (1 Credit)
-                </button>
+                
+                <div className="w-full rounded-lg bg-gradient-to-r from-[#007BFF] to-[#E600FF] p-[2px] transition-all duration-300 hover:shadow-[0_0_15px_0_rgba(128,0,255,0.4)] mt-4">
+                    <button
+                        onClick={onReset}
+                        className="w-full px-6 py-3 font-bold text-white bg-[#111115] rounded-md hover:bg-gray-800 transition-all duration-300"
+                    >
+                        Start New Analysis (1 Credit)
+                    </button>
+                </div>
             </div>
 
             {/* Right Panel: Social Posts */}
@@ -1066,8 +1076,8 @@ function VideoInputForm({ onAnalysisComplete, creditBalance, isFetchingCredits, 
             <div>
                 <label className="text-sm font-medium text-[#8A8A8E] mb-2 block">1. Source Video (Max 2 Mins)</label>
                 <div onDrop={handleDrop} onDragOver={handleDragOver} onDragLeave={handleDragLeave} className={`bg-black/30 border-2 border-dashed ${isDragging ? 'border-[#007BFF]' : 'border-brand-gray/40'} rounded-lg p-6 text-center cursor-pointer hover:border-[#007BFF] transition-colors group relative`}>
-                    <input type="file" id="videoFile" onChange={handleFileChange} accept="video/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-0" disabled={isLoading} />
-                    <div className="relative z-10 pointer-events-none"><svg className="mx-auto h-12 w-12 text-[#8A8A8E] group-hover:text-[#007BFF] transition-colors" stroke="currentColor" fill="none" viewBox="0 0 48 48"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path></svg><p className="mt-2 text-sm text-[#8A8A8E]">Drag & Drop or <span className="font-semibold text-[#007BFF]">paste a link</span></p></div>
+                    <input type="file" id="videoFile" onChange={handleFileChange} accept="video/*" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" disabled={isLoading} />
+                    <div className="relative z-0 pointer-events-none"><svg className="mx-auto h-12 w-12 text-[#8A8A8E] group-hover:text-[#007BFF] transition-colors" stroke="currentColor" fill="none" viewBox="0 0 48 48"><path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path></svg><p className="mt-2 text-sm text-[#8A8A8E]">Drag & Drop or <span className="font-semibold text-[#007BFF]">paste a link</span></p></div>
                     <input
                         id="video-link"
                         type="text"
@@ -1085,8 +1095,7 @@ function VideoInputForm({ onAnalysisComplete, creditBalance, isFetchingCredits, 
             </div>
 
             <div className="pt-4">
-                {/* Button uses the primary blue color */}
-                <button type="submit" disabled={isLoading || isFetchingCredits} className="w-full px-6 py-3 font-bold text-white bg-[#007BFF] rounded-lg hover:bg-[#0056b3] transition-all duration-300 shadow-lg hover:shadow-[0_0_20px_0_rgba(0,123,255,0.3)] focus:outline-none focus:ring-4 focus:ring-brand-blue/50 disabled:bg-[#0056b3]/50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center">
+                <button type="submit" disabled={isLoading || isFetchingCredits} className="w-full px-6 py-3 font-bold text-white bg-gradient-to-r from-[#007BFF] to-[#E600FF] rounded-lg hover:opacity-90 transition-all duration-300 shadow-lg hover:shadow-[0_0_20px_0_rgba(128,0,255,0.4)] focus:outline-none focus:ring-4 focus:ring-brand-blue/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center">
                     Analyze Video (1 Credit)
                 </button>
             </div>
@@ -1194,8 +1203,7 @@ function VideoAnalysisDisplay({ analysis, topic, onGenerationComplete }: VideoAn
                 <button
                     onClick={() => handleGenerate('Script')}
                     disabled={isLoading}
-                    // Primary Blue Button
-                    className="flex-1 px-6 py-3 font-bold text-white bg-[#007BFF] rounded-lg hover:bg-[#0056b3] transition-all duration-300 shadow-lg hover:shadow-[0_0_20px_0_rgba(0,123,255,0.3)] disabled:bg-[#0056b3]/50 flex items-center justify-center"
+                    className="flex-1 px-6 py-3 font-bold text-white bg-gradient-to-r from-[#007BFF] to-[#E600FF] rounded-lg hover:opacity-90 transition-all duration-300 shadow-lg hover:shadow-[0_0_20px_0_rgba(128,0,255,0.4)] disabled:opacity-50 flex items-center justify-center"
                 >
                     {isLoading && loadingType === 'Script' ? <Spinner /> : null}
                     Generate Script
@@ -1203,8 +1211,7 @@ function VideoAnalysisDisplay({ analysis, topic, onGenerationComplete }: VideoAn
                 <button
                     onClick={() => handleGenerate('AI Video Prompts')}
                     disabled={isLoading}
-                    // Secondary Purple Button
-                    className="flex-1 px-6 py-3 font-bold text-white bg-[#E600FF] rounded-lg hover:bg-[#b300c7] transition-all duration-300 shadow-lg hover:shadow-[0_0_20px_0_rgba(230,0,255,0.3)] disabled:bg-[#b300c7]/50 flex items-center justify-center"
+                    className="flex-1 px-6 py-3 font-bold text-white bg-gradient-to-r from-[#007BFF] to-[#E600FF] rounded-lg hover:opacity-90 transition-all duration-300 shadow-lg hover:shadow-[0_0_20px_0_rgba(128,0,255,0.4)] disabled:opacity-50 flex items-center justify-center"
                 >
                     {isLoading && loadingType === 'AI Video Prompts' ? <Spinner /> : null}
                     Generate VEO Prompts
@@ -1251,7 +1258,6 @@ function VideoGenerationOutput({ content, type, onReset }: VideoGenerationOutput
                                 </button>
                             </div>
                         ))}
-                        {/* REMOVED: "Send to Google VEO" button was here */}
                     </div>
                 ) : (
                     // Script Display
@@ -1269,12 +1275,14 @@ function VideoGenerationOutput({ content, type, onReset }: VideoGenerationOutput
                 )}
             </div>
 
-            <button
-                onClick={onReset}
-                className="w-full px-6 py-3 font-bold text-white bg-gray-600 rounded-lg hover:bg-gray-700 transition-all duration-300"
-            >
-                Start New Analysis (1 Credit)
-            </button>
+            <div className="w-full rounded-lg bg-gradient-to-r from-[#007BFF] to-[#E600FF] p-[2px] transition-all duration-300 hover:shadow-[0_0_15px_0_rgba(128,0,255,0.4)]">
+                <button
+                    onClick={onReset}
+                    className="w-full px-6 py-3 font-bold text-white bg-[#111115] rounded-md hover:bg-gray-800 transition-all duration-300"
+                >
+                    Start New Analysis (1 Credit)
+                </button>
+            </div>
         </div>
     );
 }
