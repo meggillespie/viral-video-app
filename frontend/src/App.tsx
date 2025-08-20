@@ -516,9 +516,9 @@ function ImageInputForm({ onAnalysisComplete, creditBalance, isFetchingCredits, 
 }
 
 // --- Icons for Aspect Ratio ---
-const Icon1x1 = ({ className }: { className?: string }) => (<svg className={className} viewBox="0 0 20 20" stroke="currentColor"><rect width="20" height="20" rx="2"></rect></svg>);
-const Icon4x5 = ({ className }: { className?: string }) => (<svg className={className} viewBox="0 0 16 20" stroke="currentColor"><rect width="16" height="20" rx="2"></rect></svg>);
-const Icon9x16 = ({ className }: { className?: string }) => (<svg className={className} viewBox="0 0 9 16" stroke="currentColor"><rect width="9" height="16" rx="1.5"></rect></svg>);
+const Icon1x1 = ({ className }: { className?: string }) => (<svg className={className} viewBox="0 0 20 20" fill="currentColor"><rect width="20" height="20" rx="2"></rect></svg>);
+const Icon4x5 = ({ className }: { className?: string }) => (<svg className={className} viewBox="0 0 16 20" fill="currentColor"><rect width="16" height="20" rx="2"></rect></svg>);
+const Icon9x16 = ({ className }: { className?: string }) => (<svg className={className} viewBox="0 0 9 16" fill="currentColor"><rect width="9" height="16" rx="1.5"></rect></svg>);
 
 // --- Image Analysis Display & Intent Selection (Step 2: Configuration and Generation API Call) ---
 
