@@ -28,8 +28,13 @@ root.render(
           colorInputBackground: '#26262A',
           colorInputText: '#F5F5F7',
         },
-       layout: {
-          showOptionalClerkBranding: false,
+        elements: {
+          userButtonPopoverFooter: {
+            display: 'none',
+          },
+          footer: { 
+            display: 'none',
+          }
         }
       }}
     >
