@@ -134,7 +134,7 @@ export default function App() {
                     <SignedIn><VyralizePlatformManager /></SignedIn>
                     <SignedOut>
                         <div className="text-center p-16 bg-[rgba(38,38,42,0.6)] rounded-2xl border border-[rgba(255,255,255,0.1)] shadow-2xl backdrop-blur-xl">
-                            <h2 className="text-3xl font-bold mb-4">Welcome to Vyralize</h2>
+                            <h2 className="text-3xl font-bold mb-4">Welcome to Vyralize AI</h2>
                             <p className="text-[#8A8A8E] my-4">Please sign in to continue.</p>
                             <SignInButton mode="modal"><button className="px-6 py-2 bg-gradient-to-r from-[#007BFF] to-[#E600FF] text-white font-semibold rounded-lg hover:opacity-90 transition-opacity">Sign In</button></SignInButton>
                         </div>
@@ -217,7 +217,7 @@ function VyralizePlatformManager() {
                             }`}
                         >
                             <VideoIcon />
-                            Video Analysis
+                            Video Lab
                         </button>
                         <button
                             onClick={() => setActiveTab('image')}
@@ -229,7 +229,7 @@ function VyralizePlatformManager() {
                             }`}
                         >
                             <ImageIcon />
-                            Image Studio
+                            Image Lab
                         </button>
                     </nav>
                 </div>
@@ -516,9 +516,9 @@ function ImageInputForm({ onAnalysisComplete, creditBalance, isFetchingCredits, 
 }
 
 // --- Icons for Aspect Ratio ---
-const Icon1x1 = ({ className }: { className?: string }) => (<svg className={className} viewBox="0 0 20 20" fill="currentColor"><rect width="20" height="20" rx="2"></rect></svg>);
-const Icon4x5 = ({ className }: { className?: string }) => (<svg className={className} viewBox="0 0 16 20" fill="currentColor"><rect width="16" height="20" rx="2"></rect></svg>);
-const Icon9x16 = ({ className }: { className?: string }) => (<svg className={className} viewBox="0 0 9 16" fill="currentColor"><rect width="9" height="16" rx="1.5"></rect></svg>);
+const Icon1x1 = ({ className }: { className?: string }) => (<svg className={className} viewBox="0 0 20 20" stroke="currentColor"><rect width="20" height="20" rx="2"></rect></svg>);
+const Icon4x5 = ({ className }: { className?: string }) => (<svg className={className} viewBox="0 0 16 20" stroke="currentColor"><rect width="16" height="20" rx="2"></rect></svg>);
+const Icon9x16 = ({ className }: { className?: string }) => (<svg className={className} viewBox="0 0 9 16" stroke="currentColor"><rect width="9" height="16" rx="1.5"></rect></svg>);
 
 // --- Image Analysis Display & Intent Selection (Step 2: Configuration and Generation API Call) ---
 
@@ -1113,7 +1113,7 @@ function VideoInputForm({ onAnalysisComplete, creditBalance, isFetchingCredits, 
 
             <div className="pt-4">
                 <button type="submit" disabled={isLoading || isFetchingCredits} className="w-full px-6 py-3 font-bold text-white bg-gradient-to-r from-[#007BFF] to-[#E600FF] rounded-lg hover:opacity-90 transition-all duration-300 shadow-lg hover:shadow-[0_0_20px_0_rgba(128,0,255,0.4)] focus:outline-none focus:ring-4 focus:ring-brand-blue/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center">
-                    Analyze Video (1 Credit)
+                    Analyze & Continue (1 Credit)
                 </button>
             </div>
         </form>
