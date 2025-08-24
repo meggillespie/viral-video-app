@@ -57,7 +57,8 @@ interface ImageAnalysisResult {
 }
 
 type ImageGenerationIntent = 'AdaptRemix' | 'ExtractStyle';
-type AspectRatio = '1:1' | '4:5' | '9:16';
+// FIX: Update AspectRatio options to match API support (Replaced 4:5 with 3:4)
+type AspectRatio = '1:1' | '3:4' | '9:16';
 
 
 // Icons & UI Elements (unchanged)
@@ -283,6 +284,8 @@ function ImageWorkflowManager({ creditBalance, isFetchingCredits, updateCredits,
     const [imagePreview, setImagePreview] = useState<string | null>(null);
     const [analysisResult, setAnalysisResult] = useState<ImageAnalysisResult | null>(null);
     const [generatedResult, setGeneratedResult] = useState<ImageGenerationResult | null>(null);
+    // FIX: Add state to track if text overlay was requested during the configuration step
+    const [textOverlayRequested, setTextOverlayRequested] = useState(true);
 
 
     // --- Callbacks for State Transitions ---
@@ -298,8 +301,10 @@ function ImageWorkflowManager({ creditBalance, isFetchingCredits, updateCredits,
     }, []);
 
     // Called when generation is successful (triggered in ImageAnalysisDisplay)
-    const handleGenerationComplete = useCallback((result: ImageGenerationResult) => {
+    // FIX: Update callback to receive the text overlay setting
+    const handleGenerationComplete = useCallback((result: ImageGenerationResult, withTextOverlay: boolean) => {
         setGeneratedResult(result);
+        setTextOverlayRequested(withTextOverlay); // Store the setting used for generation
         setStep('generation');
     }, []);
 
@@ -310,6 +315,7 @@ function ImageWorkflowManager({ creditBalance, isFetchingCredits, updateCredits,
         setImagePreview(null);
         setAnalysisResult(null);
         setGeneratedResult(null);
+        setTextOverlayRequested(true); // Reset to default
         setStep('input');
     }, []);
 
@@ -341,6 +347,8 @@ function ImageWorkflowManager({ creditBalance, isFetchingCredits, updateCredits,
                 return (
                     <ImageGenerationOutput
                         result={generatedResult!}
+                        // FIX: Pass the tracked state to the output component
+                        textOverlayRequested={textOverlayRequested}
                         onReset={handleReset}
                     />
                 );
@@ -517,7 +525,8 @@ function ImageInputForm({ onAnalysisComplete, creditBalance, isFetchingCredits, 
 
 // --- Icons for Aspect Ratio ---
 const Icon1x1 = ({ className }: { className?: string }) => (<svg className={className} viewBox="0 0 20 20" fill="currentColor"><rect width="20" height="20" rx="2"></rect></svg>);
-const Icon4x5 = ({ className }: { className?: string }) => (<svg className={className} viewBox="0 0 16 20" fill="currentColor"><rect width="16" height="20" rx="2"></rect></svg>);
+// FIX: Update Icon for 3:4 (Previously 4:5). Adjusted viewBox to 15x20 for 3:4 ratio visualization.
+const Icon3x4 = ({ className }: { className?: string }) => (<svg className={className} viewBox="0 0 15 20" fill="currentColor"><rect width="15" height="20" rx="2"></rect></svg>);
 const Icon9x16 = ({ className }: { className?: string }) => (<svg className={className} viewBox="0 0 9 16" fill="currentColor"><rect width="9" height="16" rx="1.5"></rect></svg>);
 
 // --- Image Analysis Display & Intent Selection (Step 2: Configuration and Generation API Call) ---
@@ -527,7 +536,8 @@ interface ImageAnalysisDisplayProps {
     topic: string;
     details: string;
     imagePreview: string;
-    onGenerationComplete: (result: ImageGenerationResult) => void;
+    // FIX: Update the callback type definition
+    onGenerationComplete: (result: ImageGenerationResult, withTextOverlay: boolean) => void;
 }
 
 function ImageAnalysisDisplay({ analysis, topic, details, imagePreview, onGenerationComplete }: ImageAnalysisDisplayProps) {
@@ -580,7 +590,8 @@ function ImageAnalysisDisplay({ analysis, topic, details, imagePreview, onGenera
             }
 
             // Transition to the next step
-            onGenerationComplete(data.result);
+            // FIX: Pass the current setting of withTextOverlay to the manager
+            onGenerationComplete(data.result, withTextOverlay);
 
         } catch (err: any) {
             setError(err.message);
@@ -675,9 +686,10 @@ function ImageAnalysisDisplay({ analysis, topic, details, imagePreview, onGenera
                             <Icon1x1 className="h-8 w-8" />
                             <span className="text-xs font-semibold">1:1</span>
                         </button>
-                         <button type="button" onClick={() => setAspectRatio('4:5')} className={getAspectRatioButtonClass('4:5')}>
-                            <Icon4x5 className="h-8 w-8" />
-                            <span className="text-xs font-semibold">4:5</span>
+                        {/* FIX: Updated button for 3:4 */}
+                         <button type="button" onClick={() => setAspectRatio('3:4')} className={getAspectRatioButtonClass('3:4')}>
+                            <Icon3x4 className="h-8 w-8" />
+                            <span className="text-xs font-semibold">3:4</span>
                         </button>
                          <button type="button" onClick={() => setAspectRatio('9:16')} className={getAspectRatioButtonClass('9:16')}>
                             <Icon9x16 className="h-8 w-8" />
@@ -741,14 +753,18 @@ function ImageAnalysisDisplay({ analysis, topic, details, imagePreview, onGenera
 
 interface ImageGenerationOutputProps {
     result: ImageGenerationResult;
+    // FIX: Add prop to know if the user intended to have text
+    textOverlayRequested: boolean;
     onReset: () => void;
 }
 
 // FIX: Updated to include editable text overlay and robust image display
-function ImageGenerationOutput({ result, onReset }: ImageGenerationOutputProps) {
+function ImageGenerationOutput({ result, textOverlayRequested, onReset }: ImageGenerationOutputProps) {
     const [copyStatus, setCopyStatus] = useState('');
-    // FIX: State to manage the editable headline, initialized with the generated result
-    const [editableHeadline, setEditableHeadline] = useState(result.headline);
+    // FIX: Initialize state with the generated headline OR a placeholder if generation failed but was requested.
+    const [editableHeadline, setEditableHeadline] = useState(
+        result.headline || (textOverlayRequested ? "Your Headline Here" : "")
+    );
 
     // Helper to render social posts cleanly (unchanged)
     const renderPost = (platform: string, content: string) => (
@@ -792,8 +808,8 @@ function ImageGenerationOutput({ result, onReset }: ImageGenerationOutputProps) 
                     <img src={result.imageUrl} alt="Generated Content" className="w-full h-auto block rounded-lg shadow-xl"/>
 
                     {/* Optional Headline Overlay (FIX: Now Editable) */}
-                    {/* FIX: Check the editableHeadline state */}
-                    {editableHeadline && (
+                    {/* FIX: Show the overlay if text was requested, ensuring the textarea is always present for editing. */}
+                    {textOverlayRequested && (
                         <div className="absolute inset-0 flex items-center justify-center p-4 bg-black/50 rounded-lg">
                             {/* FIX: Replaced <p> with <textarea> and added styling for editing */}
                              <textarea
@@ -839,10 +855,10 @@ function ImageGenerationOutput({ result, onReset }: ImageGenerationOutputProps) 
     );
 }
 
+
 // ============================================================================
 // Video Workflow Manager (Previously VyralizeWorkflowManager)
 // ============================================================================
-
 
 // (The entire Video Workflow section remains unchanged from the provided files, pasted below for completeness)
 

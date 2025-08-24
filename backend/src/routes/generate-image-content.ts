@@ -6,7 +6,7 @@ import { vertexAIRegional, predictionClient } from '../services';
 import { helpers, protos } from '@google-cloud/aiplatform';
 
 
-// Interface definitions (unchanged)
+// Interface definitions
 interface ImageAnalysis {
     subjects: Array<{ name: string; description: string; prominence: string; }>;
     setting: { location: string; time_of_day: string; context: string; };
@@ -17,8 +17,8 @@ interface ImageAnalysis {
     };
 }
 type GenerationIntent = 'AdaptRemix' | 'ExtractStyle';
-// FIX: Define AspectRatio type
-type AspectRatio = '1:1' | '4:5' | '9:16';
+// FIX: Update AspectRatio type to match API support (Replaced 4:5 with 3:4)
+type AspectRatio = '1:1' | '3:4' | '9:16';
 
 // Constants
 const GEMINI_MODEL = 'gemini-2.5-flash';
@@ -86,7 +86,6 @@ Your output must be a single, concise, and descriptive prompt paragraph for Imag
 // ============================================================================
 // WORKAROUND: Generate Image using the Prediction Service (:predict endpoint)
 // ============================================================================
-// FIX: Updated signature to accept aspectRatio
 async function generateImageFromPrompt(finalImagePrompt: string, aspectRatio: AspectRatio): Promise<{ base64: string, mime: string }> {
     // ADDED FOR DEBUGGING: Log the final prompt and aspect ratio.
     console.log(`[DEBUG] Final prompt sent to Imagen: "${finalImagePrompt}" | Aspect Ratio: ${aspectRatio}`);
@@ -97,13 +96,13 @@ async function generateImageFromPrompt(finalImagePrompt: string, aspectRatio: As
         helpers.toValue({ prompt: finalImagePrompt })
     ].filter((v): v is protos.google.protobuf.IValue => v !== undefined);
 
-    // FIX: Include aspectRatio in the parameters
+    // FIX: Changed key to 'aspect_ratio' (snake_case) as required by the Google API via protobuf conversion.
     const request = {
         endpoint: modelResourceName,
         instances: instances,
         parameters: helpers.toValue({
             sampleCount: 1,
-            aspectRatio: aspectRatio,
+            aspect_ratio: aspectRatio, // Use snake_case key
         }),
     };
 
@@ -132,19 +131,19 @@ async function generateImageFromPrompt(finalImagePrompt: string, aspectRatio: As
 }
 
 // ============================================================================
-// Step 4: Generate Social Text (Gemini 2.5 Flash - Regional)
+// Step 4a: Generate Social Text (Gemini 2.5 Flash - Regional)
 // ============================================================================
-// FIX: Updated function to correctly build the prompt using conditional logic.
+// FIX: Simplified to only handle social posts. Removed headline functionality.
 async function generateSocialText(
-    topic: string, analysis: ImageAnalysis, finalImagePrompt: string, headlineWanted: boolean
+    topic: string, analysis: ImageAnalysis, finalImagePrompt: string
 ) {
     const model = vertexAIRegional.getGenerativeModel({ model: GEMINI_MODEL });
     const subjectNames = analysis.subjects.map(s => s.name).join(', ') || 'N/A';
     const styleMood = analysis.style_elements.overall_mood || 'N/A';
     const stylePhoto = analysis.style_elements.photography_style || 'N/A';
-
-    // FIX: Construct the prompt dynamically. The previous template literal approach was flawed.
-    let prompt = `
+    
+    // FIX: Simplified prompt.
+    const prompt = `
 You are an expert social media manager. Based on the provided information, generate compelling posts for Facebook, Instagram, X (formerly Twitter), and LinkedIn.
 
 **CONTEXT:**
@@ -159,16 +158,9 @@ You are an expert social media manager. Based on the provided information, gener
 - **Instagram:** Write a visually-focused caption, suggest relevant visual hashtags, and include a call to action.
 - **X:** Write a concise, impactful post under 280 characters with 2-3 key hashtags.
 - **LinkedIn:** Write a professional, slightly more detailed post explaining the context or message behind the image.
+
+Output strictly as a JSON object with keys: linkedin, twitter, instagram, facebook.
 `;
-
-    // Conditionally add the Headline instruction
-    if (headlineWanted) {
-        prompt += '- Headline: 6-10 words, bold and catchy hook for the image overlay.\n';
-    }
-
-    // Add the output format instruction
-    prompt += `\nOutput strictly as a JSON object with keys: linkedin, twitter, instagram, facebook${headlineWanted ? ', headline' : ''}.`;
-
 
     const resp = await model.generateContent({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
@@ -178,9 +170,7 @@ You are an expert social media manager. Based on the provided information, gener
     try {
         const parsed = JSON.parse(text);
 
-        // --- FIX FOR REACT ERROR ---
-        // This block checks if the 'instagram' field is an object. If so, it combines
-        // its parts into a single string to prevent the frontend from crashing.
+        // --- FIX FOR REACT ERROR --- (Remains)
         let instagramPost: string;
         if (typeof parsed.instagram === 'object' && parsed.instagram !== null) {
             const ig = parsed.instagram;
@@ -200,42 +190,87 @@ You are an expert social media manager. Based on the provided information, gener
             twitter: parsed.twitter || parsed.x || '',
             instagram: instagramPost, // Use the processed, safe string
             facebook: parsed.facebook || '',
-            headline: headlineWanted ? parsed.headline || null : null,
         };
     } catch (parseError) {
         console.error("Failed to parse social text JSON:", text, parseError);
-        return { linkedin: '', twitter: '', instagram: '', facebook: '', headline: null };
+        return { linkedin: '', twitter: '', instagram: '', facebook: ''};
+    }
+}
+
+// ============================================================================
+// NEW Step 4b: Generate Headline Text (Dedicated Call)
+// ============================================================================
+async function generateHeadline(topic: string, finalImagePrompt: string): Promise<string | null> {
+    const model = vertexAIRegional.getGenerativeModel({ model: GEMINI_MODEL });
+
+    // A focused prompt designed only to generate a headline.
+    const prompt = `
+You are an expert copywriter specializing in creating catchy, high-impact headlines for social media images.
+
+**CONTEXT:**
+**Topic:** "${topic}"
+**Image Description (AI Prompt):** "${finalImagePrompt}"
+
+**TASK:**
+Generate a bold and catchy headline for this image.
+- **Length:** 5 to 10 words maximum.
+- **Style:** Impactful, intriguing, and relevant to the topic and image.
+
+**OUTPUT:**
+Provide ONLY the headline text. Do not include quotes, labels, or any other formatting.
+`;
+
+    try {
+        const resp = await model.generateContent({
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        });
+        const text = resp.response?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') || '';
+        
+        if (text.trim().length > 0) {
+            return text.trim();
+        }
+        return null;
+
+    } catch (error) {
+        console.error("Failed to generate headline:", error);
+        return null;
     }
 }
 
 
-// Main Route Handler (FIX: Updated to handle aspectRatio)
+// Main Route Handler
 export const generateImageContentRoute = async (req: Request, res: Response) => {
     let currentStep = "Initialization";
     try {
-        // FIX: Destructure aspectRatio
         const { topic, details, analysis, intent, controlLevel, withTextOverlay, aspectRatio } = req.body;
         if (!topic || !analysis || !intent) {
             return res.status(400).json({ error: 'Missing required fields: topic, analysis, and intent.' });
         }
 
-        // FIX: Validate or default Aspect Ratio
-        const validAspectRatios: AspectRatio[] = ['1:1', '4:5', '9:16'];
+        // FIX: Validate or default Aspect Ratio using the updated supported list
+        const validAspectRatios: AspectRatio[] = ['1:1', '3:4', '9:16'];
         const finalAspectRatio: AspectRatio = validAspectRatios.includes(aspectRatio) ? aspectRatio : '1:1';
 
+        const includeHeadline = String(withTextOverlay ?? 'true') === 'true';
 
         currentStep = "Prompt Engineering (Gemini)";
         const optimizedPrompt = await buildOptimizedPrompt(analysis, topic, details, intent, Number(controlLevel || 50));
         
         currentStep = "Image Generation (Imagen 4 via Prediction Service)";
-        // FIX: Pass the validated aspectRatio
         const imageData = await generateImageFromPrompt(optimizedPrompt, finalAspectRatio);
         const imageUrl = `data:${imageData.mime};base64,${imageData.base64}`;
 
-        currentStep = "Social Text Generation (Gemini)";
-        const copy = await generateSocialText(topic, analysis, optimizedPrompt, String(withTextOverlay ?? 'true') === 'true');
+        // FIX: Run text generation tasks in parallel for faster response and better reliability
+        currentStep = "Social Text & Headline Generation (Gemini)";
         
-        const result = { imageUrl, posts: copy, headline: copy.headline };
+        const socialTextPromise = generateSocialText(topic, analysis, optimizedPrompt);
+        // Only run headline generation if requested
+        const headlinePromise = includeHeadline ? generateHeadline(topic, optimizedPrompt) : Promise.resolve(null);
+
+        // Wait for both text generations to complete
+        const [posts, headline] = await Promise.all([socialTextPromise, headlinePromise]);
+        
+        const result = { imageUrl, posts, headline };
         return res.status(200).json({ result });
 
     } catch (error: any) {
