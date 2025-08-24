@@ -5,6 +5,7 @@ import { vertexAIRegional, predictionClient } from '../services';
 // FIX: Import 'protos' to get access to specific types for the request.
 import { helpers, protos } from '@google-cloud/aiplatform';
 
+
 // Interface definitions (unchanged)
 interface ImageAnalysis {
     subjects: Array<{ name: string; description: string; prominence: string; }>;
@@ -16,8 +17,10 @@ interface ImageAnalysis {
     };
 }
 type GenerationIntent = 'AdaptRemix' | 'ExtractStyle';
+// FIX: Define AspectRatio type
+type AspectRatio = '1:1' | '4:5' | '9:16';
 
-// Constants (unchanged)
+// Constants
 const GEMINI_MODEL = 'gemini-2.5-flash';
 const IMAGEN_MODEL_ID = 'imagen-4.0-generate-001';
 
@@ -83,34 +86,35 @@ Your output must be a single, concise, and descriptive prompt paragraph for Imag
 // ============================================================================
 // WORKAROUND: Generate Image using the Prediction Service (:predict endpoint)
 // ============================================================================
-async function generateImageFromPrompt(finalImagePrompt: string): Promise<{ base64: string, mime: string }> {
-    console.log(`[WORKAROUND] Starting image generation with ${IMAGEN_MODEL_ID} via Prediction Service...`);
+// FIX: Updated signature to accept aspectRatio
+async function generateImageFromPrompt(finalImagePrompt: string, aspectRatio: AspectRatio): Promise<{ base64: string, mime: string }> {
+    // ADDED FOR DEBUGGING: Log the final prompt and aspect ratio.
+    console.log(`[DEBUG] Final prompt sent to Imagen: "${finalImagePrompt}" | Aspect Ratio: ${aspectRatio}`);
 
     const modelResourceName = `projects/${process.env.GOOGLE_CLOUD_PROJECT}/locations/${process.env.GOOGLE_CLOUD_LOCATION}/publishers/google/models/${IMAGEN_MODEL_ID}`;
 
-    // FINAL FIX: Create the instances array and then filter it to remove any potential 'undefined' values.
-    // This is a type guard that guarantees to TypeScript that the array only contains valid 'IValue' objects.
     const instances = [
         helpers.toValue({ prompt: finalImagePrompt })
     ].filter((v): v is protos.google.protobuf.IValue => v !== undefined);
 
-
+    // FIX: Include aspectRatio in the parameters
     const request = {
         endpoint: modelResourceName,
         instances: instances,
         parameters: helpers.toValue({
-            sampleCount: 1
+            sampleCount: 1,
+            aspectRatio: aspectRatio,
         }),
     };
 
-    // Await the result first, then access the first element of the response array.
     const predictResponse = await predictionClient.predict(request);
     const response = predictResponse[0];
 
     const predictions = response.predictions;
     if (!predictions || predictions.length === 0) {
-        console.error("Image generation failed. API Response:", JSON.stringify(response, null, 2));
-        throw new Error('No predictions returned by model.');
+        // ADDED FOR DEBUGGING: Log the full API response when no predictions are returned.
+        console.error("[SAFETY FILTER?] Image generation failed because the API returned no predictions. Full response:", JSON.stringify(response, null, 2));
+        throw new Error('No predictions returned by model. This may be due to safety filters.');
     }
 
     const imagePrediction = helpers.fromValue(predictions[0] as any);
@@ -127,7 +131,10 @@ async function generateImageFromPrompt(finalImagePrompt: string): Promise<{ base
     };
 }
 
-// generateSocialText function (unchanged, uses vertexAI for Gemini)
+// ============================================================================
+// Step 4: Generate Social Text (Gemini 2.5 Flash - Regional)
+// ============================================================================
+// FIX: Updated function to correctly build the prompt using conditional logic.
 async function generateSocialText(
     topic: string, analysis: ImageAnalysis, finalImagePrompt: string, headlineWanted: boolean
 ) {
@@ -135,32 +142,34 @@ async function generateSocialText(
     const subjectNames = analysis.subjects.map(s => s.name).join(', ') || 'N/A';
     const styleMood = analysis.style_elements.overall_mood || 'N/A';
     const stylePhoto = analysis.style_elements.photography_style || 'N/A';
-    const SOCIAL_TEXT_PROMPT_TEMPLATE = `
+
+    // FIX: Construct the prompt dynamically. The previous template literal approach was flawed.
+    let prompt = `
 You are an expert social media manager. Based on the provided information, generate compelling posts for Facebook, Instagram, X (formerly Twitter), and LinkedIn.
 
 **CONTEXT:**
-**User's Goal:** "\${USER_TOPIC}"
-**Visual Prompt Used:** "\${FINAL_IMAGEN_PROMPT}"
+**User's Goal:** "${topic}"
+**Visual Prompt Used:** "${finalImagePrompt}"
 **Original Image Inspiration (for tone/style):**
-- Subjects: \${SUBJECT_NAMES}
-- Style: \${STYLE_MOOD} and \${STYLE_PHOTO}
+- Subjects: ${subjectNames}
+- Style: ${styleMood} and ${stylePhoto}
 
 **INSTRUCTIONS:**
 - **Facebook:** Write an engaging post (2-3 sentences) with relevant hashtags.
 - **Instagram:** Write a visually-focused caption, suggest relevant visual hashtags, and include a call to action.
 - **X:** Write a concise, impactful post under 280 characters with 2-3 key hashtags.
 - **LinkedIn:** Write a professional, slightly more detailed post explaining the context or message behind the image.
-\${HEADLINE_WANTED ? '- Headline: 6-10 words, bold and catchy hook for the image overlay.' : ''}
-
-Output strictly as a JSON object with keys: linkedin, twitter, instagram, facebook\${HEADLINE_WANTED ? ', headline' : ''}.
 `;
-    const prompt = SOCIAL_TEXT_PROMPT_TEMPLATE
-        .replace('${USER_TOPIC}', topic)
-        .replace('${FINAL_IMAGEN_PROMPT}', finalImagePrompt)
-        .replace('${SUBJECT_NAMES}', subjectNames)
-        .replace('${STYLE_MOOD}', styleMood)
-        .replace('${STYLE_PHOTO}', stylePhoto)
-        .replace(/\${HEADLINE_WANTED}/g, headlineWanted ? 'true' : '');
+
+    // Conditionally add the Headline instruction
+    if (headlineWanted) {
+        prompt += '- Headline: 6-10 words, bold and catchy hook for the image overlay.\n';
+    }
+
+    // Add the output format instruction
+    prompt += `\nOutput strictly as a JSON object with keys: linkedin, twitter, instagram, facebook${headlineWanted ? ', headline' : ''}.`;
+
+
     const resp = await model.generateContent({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         generationConfig: { responseMimeType: "application/json" }
@@ -168,10 +177,28 @@ Output strictly as a JSON object with keys: linkedin, twitter, instagram, facebo
     const text = resp.response?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') || '{}';
     try {
         const parsed = JSON.parse(text);
+
+        // --- FIX FOR REACT ERROR ---
+        // This block checks if the 'instagram' field is an object. If so, it combines
+        // its parts into a single string to prevent the frontend from crashing.
+        let instagramPost: string;
+        if (typeof parsed.instagram === 'object' && parsed.instagram !== null) {
+            const ig = parsed.instagram;
+            const caption = ig.caption || '';
+            const hashtags = (ig.visual_hashtags || []).join(' ');
+            const cta = ig.call_to_action || '';
+            // Combine the parts, filtering out any empty ones, and join with newlines.
+            instagramPost = [caption, hashtags, cta].filter(Boolean).join('\n\n');
+        } else {
+            // If it's already a string or something else, use it as is.
+            instagramPost = parsed.instagram || '';
+        }
+        // --- END OF FIX ---
+
         return {
             linkedin: parsed.linkedin || '',
             twitter: parsed.twitter || parsed.x || '',
-            instagram: parsed.instagram || '',
+            instagram: instagramPost, // Use the processed, safe string
             facebook: parsed.facebook || '',
             headline: headlineWanted ? parsed.headline || null : null,
         };
@@ -182,19 +209,27 @@ Output strictly as a JSON object with keys: linkedin, twitter, instagram, facebo
 }
 
 
-// Main Route Handler (unchanged)
+// Main Route Handler (FIX: Updated to handle aspectRatio)
 export const generateImageContentRoute = async (req: Request, res: Response) => {
     let currentStep = "Initialization";
     try {
-        const { topic, details, analysis, intent, controlLevel, withTextOverlay } = req.body;
+        // FIX: Destructure aspectRatio
+        const { topic, details, analysis, intent, controlLevel, withTextOverlay, aspectRatio } = req.body;
         if (!topic || !analysis || !intent) {
             return res.status(400).json({ error: 'Missing required fields: topic, analysis, and intent.' });
         }
+
+        // FIX: Validate or default Aspect Ratio
+        const validAspectRatios: AspectRatio[] = ['1:1', '4:5', '9:16'];
+        const finalAspectRatio: AspectRatio = validAspectRatios.includes(aspectRatio) ? aspectRatio : '1:1';
+
+
         currentStep = "Prompt Engineering (Gemini)";
         const optimizedPrompt = await buildOptimizedPrompt(analysis, topic, details, intent, Number(controlLevel || 50));
         
         currentStep = "Image Generation (Imagen 4 via Prediction Service)";
-        const imageData = await generateImageFromPrompt(optimizedPrompt);
+        // FIX: Pass the validated aspectRatio
+        const imageData = await generateImageFromPrompt(optimizedPrompt, finalAspectRatio);
         const imageUrl = `data:${imageData.mime};base64,${imageData.base64}`;
 
         currentStep = "Social Text Generation (Gemini)";

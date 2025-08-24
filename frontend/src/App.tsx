@@ -744,8 +744,11 @@ interface ImageGenerationOutputProps {
     onReset: () => void;
 }
 
+// FIX: Updated to include editable text overlay and robust image display
 function ImageGenerationOutput({ result, onReset }: ImageGenerationOutputProps) {
     const [copyStatus, setCopyStatus] = useState('');
+    // FIX: State to manage the editable headline, initialized with the generated result
+    const [editableHeadline, setEditableHeadline] = useState(result.headline);
 
     // Helper to render social posts cleanly (unchanged)
     const renderPost = (platform: string, content: string) => (
@@ -785,13 +788,21 @@ function ImageGenerationOutput({ result, onReset }: ImageGenerationOutputProps) 
             {/* Left Panel: Image Display */}
             <div className="space-y-6">
                 <div className="relative group">
-                    <img src={result.imageUrl} alt="Generated Content" className="w-full rounded-lg shadow-xl"/>
+                    {/* FIX: Added 'h-auto block' to ensure the image scales correctly without odd borders/spacing. */}
+                    <img src={result.imageUrl} alt="Generated Content" className="w-full h-auto block rounded-lg shadow-xl"/>
 
-                    {/* Optional Headline Overlay (For visual representation) */}
-                    {result.headline && (
+                    {/* Optional Headline Overlay (FIX: Now Editable) */}
+                    {/* FIX: Check the editableHeadline state */}
+                    {editableHeadline && (
                         <div className="absolute inset-0 flex items-center justify-center p-4 bg-black/50 rounded-lg">
-                            {/* Simple text shadow styling added for readability */}
-                            <p className="text-white text-2xl lg:text-3xl font-bold text-center" style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.8)' }}>{result.headline}</p>
+                            {/* FIX: Replaced <p> with <textarea> and added styling for editing */}
+                             <textarea
+                                className="text-white text-2xl lg:text-3xl font-bold text-center bg-transparent border-2 border-dashed border-transparent hover:border-white/30 focus:border-white/70 focus:outline-none resize-none w-full h-full p-4 transition-colors"
+                                style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.8)' }}
+                                value={editableHeadline}
+                                onChange={(e) => setEditableHeadline(e.target.value)}
+                                aria-label="Editable Headline Overlay"
+                            />
                         </div>
                     )}
 
@@ -828,10 +839,10 @@ function ImageGenerationOutput({ result, onReset }: ImageGenerationOutputProps) 
     );
 }
 
-
 // ============================================================================
 // Video Workflow Manager (Previously VyralizeWorkflowManager)
 // ============================================================================
+
 
 // (The entire Video Workflow section remains unchanged from the provided files, pasted below for completeness)
 
