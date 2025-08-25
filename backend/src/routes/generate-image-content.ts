@@ -17,8 +17,8 @@ interface ImageAnalysis {
     };
 }
 type GenerationIntent = 'AdaptRemix' | 'ExtractStyle';
-// FIX: Update AspectRatio type to match API support (Replaced 4:5 with 3:4)
-type AspectRatio = '1:1' | '3:4' | '9:16';
+// TASK 1: Update AspectRatio type to only support 1:1 for MVP.
+type AspectRatio = '1:1';
 
 // Constants
 const GEMINI_MODEL = 'gemini-2.5-flash';
@@ -133,7 +133,7 @@ async function generateImageFromPrompt(finalImagePrompt: string, aspectRatio: As
 // ============================================================================
 // Step 4a: Generate Social Text (Gemini 2.5 Flash - Regional)
 // ============================================================================
-// FIX: Simplified to only handle social posts. Removed headline functionality.
+// (generateSocialText function remains unchanged)
 async function generateSocialText(
     topic: string, analysis: ImageAnalysis, finalImagePrompt: string
 ) {
@@ -175,7 +175,8 @@ Output strictly as a JSON object with keys: linkedin, twitter, instagram, facebo
         if (typeof parsed.instagram === 'object' && parsed.instagram !== null) {
             const ig = parsed.instagram;
             const caption = ig.caption || '';
-            const hashtags = (ig.visual_hashtags || []).join(' ');
+            // Ensure hashtags are handled correctly even if they aren't in an array format
+            const hashtags = Array.isArray(ig.visual_hashtags) ? ig.visual_hashtags.join(' ') : (ig.visual_hashtags || '');
             const cta = ig.call_to_action || '';
             // Combine the parts, filtering out any empty ones, and join with newlines.
             instagramPost = [caption, hashtags, cta].filter(Boolean).join('\n\n');
@@ -200,6 +201,7 @@ Output strictly as a JSON object with keys: linkedin, twitter, instagram, facebo
 // ============================================================================
 // NEW Step 4b: Generate Headline Text (Dedicated Call)
 // ============================================================================
+// (generateHeadline function remains unchanged)
 async function generateHeadline(topic: string, finalImagePrompt: string): Promise<string | null> {
     const model = vertexAIRegional.getGenerativeModel({ model: GEMINI_MODEL });
 
@@ -242,14 +244,14 @@ Provide ONLY the headline text. Do not include quotes, labels, or any other form
 export const generateImageContentRoute = async (req: Request, res: Response) => {
     let currentStep = "Initialization";
     try {
-        const { topic, details, analysis, intent, controlLevel, withTextOverlay, aspectRatio } = req.body;
+        // TASK 1: Remove aspectRatio from input, as it is no longer configurable.
+        const { topic, details, analysis, intent, controlLevel, withTextOverlay } = req.body;
         if (!topic || !analysis || !intent) {
             return res.status(400).json({ error: 'Missing required fields: topic, analysis, and intent.' });
         }
 
-        // FIX: Validate or default Aspect Ratio using the updated supported list
-        const validAspectRatios: AspectRatio[] = ['1:1', '3:4', '9:16'];
-        const finalAspectRatio: AspectRatio = validAspectRatios.includes(aspectRatio) ? aspectRatio : '1:1';
+        // TASK 1: Force Aspect Ratio to 1:1.
+        const finalAspectRatio: AspectRatio = '1:1';
 
         const includeHeadline = String(withTextOverlay ?? 'true') === 'true';
 

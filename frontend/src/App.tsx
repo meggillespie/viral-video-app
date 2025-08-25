@@ -57,8 +57,7 @@ interface ImageAnalysisResult {
 }
 
 type ImageGenerationIntent = 'AdaptRemix' | 'ExtractStyle';
-// FIX: Update AspectRatio options to match API support (Replaced 4:5 with 3:4)
-type AspectRatio = '1:1' | '3:4' | '9:16';
+// TASK 1: Removed AspectRatio type definition as it is no longer used in the frontend.
 
 
 // Icons & UI Elements (unchanged)
@@ -181,8 +180,10 @@ function VyralizePlatformManager() {
     }, [user, getToken]);
 
     // Centralized credit update function passed down to workflow managers
-    const updateCredits = useCallback(() => {
-        setCreditBalance(prev => (prev ? prev - 1 : 0));
+    // TASK 3: Updated to accept an amount, defaulting to 1.
+    const updateCredits = useCallback((amount: number = 1) => {
+        // Assumes integer credits based on existing implementation
+        setCreditBalance(prev => (prev ? prev - amount : 0));
     }, []);
 
     // Determine the container size based on the active tab
@@ -265,7 +266,8 @@ function VyralizePlatformManager() {
 interface WorkflowManagerProps {
     creditBalance: number;
     isFetchingCredits: boolean;
-    updateCredits: () => void;
+    // TASK 3: Updated signature to allow optional amount
+    updateCredits: (amount?: number) => void;
     getToken: Function;
 }
 
@@ -369,7 +371,7 @@ interface ImageInputFormProps {
     creditBalance: number;
     isFetchingCredits: boolean;
     getToken: Function;
-    updateCredits: () => void;
+    updateCredits: (amount?: number) => void;
 }
 
 function ImageInputForm({ onAnalysisComplete, creditBalance, isFetchingCredits, getToken, updateCredits }: ImageInputFormProps) {
@@ -456,7 +458,7 @@ function ImageInputForm({ onAnalysisComplete, creditBalance, isFetchingCredits, 
                 console.error("Credit decrement failed, but analysis succeeded.", decrementError);
                 // We proceed as the analysis was successful, but log the error.
             } else {
-                updateCredits();
+                updateCredits(1); // Deduct 1 credit
             }
 
             // Transition to the next step
@@ -523,11 +525,7 @@ function ImageInputForm({ onAnalysisComplete, creditBalance, isFetchingCredits, 
     );
 }
 
-// --- Icons for Aspect Ratio ---
-const Icon1x1 = ({ className }: { className?: string }) => (<svg className={className} viewBox="0 0 20 20" fill="currentColor"><rect width="20" height="20" rx="2"></rect></svg>);
-// FIX: Update Icon for 3:4 (Previously 4:5). Adjusted viewBox to 15x20 for 3:4 ratio visualization.
-const Icon3x4 = ({ className }: { className?: string }) => (<svg className={className} viewBox="0 0 15 20" fill="currentColor"><rect width="15" height="20" rx="2"></rect></svg>);
-const Icon9x16 = ({ className }: { className?: string }) => (<svg className={className} viewBox="0 0 9 16" fill="currentColor"><rect width="9" height="16" rx="1.5"></rect></svg>);
+// TASK 1: Removed Icons for Aspect Ratio (Icon1x1, Icon3x4, Icon9x16) as they are no longer used.
 
 // --- Image Analysis Display & Intent Selection (Step 2: Configuration and Generation API Call) ---
 
@@ -536,17 +534,16 @@ interface ImageAnalysisDisplayProps {
     topic: string;
     details: string;
     imagePreview: string;
-    // FIX: Update the callback type definition
     onGenerationComplete: (result: ImageGenerationResult, withTextOverlay: boolean) => void;
 }
 
+// TASK 1: Updated to remove Aspect Ratio selection.
 function ImageAnalysisDisplay({ analysis, topic, details, imagePreview, onGenerationComplete }: ImageAnalysisDisplayProps) {
     // State for Intent Selection (PDF Steps 4 & 5)
     const [intent, setIntent] = useState<ImageGenerationIntent>('AdaptRemix');
     const [controlLevel, setControlLevel] = useState(50);
     const [withTextOverlay, setWithTextOverlay] = useState(true);
-    // NEW: State for Aspect Ratio
-    const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
+    // TASK 1: Removed State for Aspect Ratio
 
     // Loading/Error State
     const [isLoading, setIsLoading] = useState(false);
@@ -575,7 +572,7 @@ function ImageAnalysisDisplay({ analysis, topic, details, imagePreview, onGenera
                     intent: intent,
                     controlLevel: controlLevel,
                     withTextOverlay: withTextOverlay,
-                    aspectRatio: aspectRatio, // MODIFIED: Pass aspect ratio to backend
+                    // TASK 1: aspectRatio is no longer sent.
                 }),
             });
 
@@ -590,7 +587,6 @@ function ImageAnalysisDisplay({ analysis, topic, details, imagePreview, onGenera
             }
 
             // Transition to the next step
-            // FIX: Pass the current setting of withTextOverlay to the manager
             onGenerationComplete(data.result, withTextOverlay);
 
         } catch (err: any) {
@@ -615,13 +611,7 @@ function ImageAnalysisDisplay({ analysis, topic, details, imagePreview, onGenera
         maxLabel: 'Strictly Follow Style'
     };
 
-    // Helper for aspect ratio button classes
-    const getAspectRatioButtonClass = (ratio: AspectRatio) => {
-        const baseClass = "flex flex-col items-center gap-2 p-3 rounded-lg cursor-pointer transition-colors";
-        return aspectRatio === ratio
-            ? `${baseClass} bg-[#E600FF]/20 text-[#E600FF] border border-[#E600FF]`
-            : `${baseClass} bg-black/30 hover:bg-black/50 border border-transparent`;
-    };
+    // TASK 1: Removed Helper for aspect ratio button classes (getAspectRatioButtonClass)
 
     return (
         <div className="space-y-8">
@@ -678,25 +668,7 @@ function ImageAnalysisDisplay({ analysis, topic, details, imagePreview, onGenera
                     </div>
                 </div>
 
-                {/* NEW: Aspect Ratio Selection */}
-                <div>
-                    <label className="text-lg font-medium text-white mb-4 block text-center">Select Aspect Ratio</label>
-                    <div className="flex justify-center items-center gap-4">
-                        <button type="button" onClick={() => setAspectRatio('1:1')} className={getAspectRatioButtonClass('1:1')}>
-                            <Icon1x1 className="h-8 w-8" />
-                            <span className="text-xs font-semibold">1:1</span>
-                        </button>
-                        {/* FIX: Updated button for 3:4 */}
-                         <button type="button" onClick={() => setAspectRatio('3:4')} className={getAspectRatioButtonClass('3:4')}>
-                            <Icon3x4 className="h-8 w-8" />
-                            <span className="text-xs font-semibold">3:4</span>
-                        </button>
-                         <button type="button" onClick={() => setAspectRatio('9:16')} className={getAspectRatioButtonClass('9:16')}>
-                            <Icon9x16 className="h-8 w-8" />
-                            <span className="text-xs font-semibold">9:16</span>
-                        </button>
-                    </div>
-                </div>
+                {/* TASK 1: Aspect Ratio Selection UI Block Removed */}
 
 
                 {/* Step 5: The "Creative Control" Slider (Repurposed Slider from PDF) */}
@@ -857,11 +829,10 @@ function ImageGenerationOutput({ result, textOverlayRequested, onReset }: ImageG
 
 
 // ============================================================================
-// Video Workflow Manager (Previously VyralizeWorkflowManager)
+// Video Workflow Manager (Updated for Cross-Generation)
 // ============================================================================
 
-// (The entire Video Workflow section remains unchanged from the provided files, pasted below for completeness)
-
+// TASK 3: Updated to manage state for cross-generation
 function VideoWorkflowManager({ creditBalance, isFetchingCredits, updateCredits, getToken }: WorkflowManagerProps) {
     // Workflow State
     const [step, setStep] = useState<'input' | 'analysis' | 'generation'>('input');
@@ -887,6 +858,13 @@ function VideoWorkflowManager({ creditBalance, isFetchingCredits, updateCredits,
         setGeneratedContent(content);
         setGeneratedType(type);
         setStep('generation');
+    }, []);
+
+    // TASK 3: NEW: Callback for updating the generation result (used for cross-generation)
+    const handleUpdateGeneration = useCallback((content: string | string[], type: VideoOutputType) => {
+        setGeneratedContent(content);
+        setGeneratedType(type);
+        // Step remains 'generation'
     }, []);
 
     // Resets the entire workflow
@@ -920,11 +898,19 @@ function VideoWorkflowManager({ creditBalance, isFetchingCredits, updateCredits,
                     />
                 );
             case 'generation':
+                // TASK 3: Pass required props for cross-generation
                 return (
                     <VideoGenerationOutput
                         content={generatedContent!}
                         type={generatedType!}
                         onReset={handleReset}
+                        // New props
+                        analysis={analysisResult!}
+                        topic={topic}
+                        getToken={getToken}
+                        updateCredits={updateCredits}
+                        onUpdateGeneration={handleUpdateGeneration}
+                        creditBalance={creditBalance}
                     />
                 );
         }
@@ -942,7 +928,7 @@ interface VideoInputFormProps {
     creditBalance: number;
     isFetchingCredits: boolean;
     getToken: Function;
-    updateCredits: () => void;
+    updateCredits: (amount?: number) => void;
 }
 
 function VideoInputForm({ onAnalysisComplete, creditBalance, isFetchingCredits, getToken, updateCredits }: VideoInputFormProps) {
@@ -1087,7 +1073,7 @@ function VideoInputForm({ onAnalysisComplete, creditBalance, isFetchingCredits, 
             if (decrementError) {
                 console.error("Credit decrement failed, but analysis succeeded.", decrementError);
             } else {
-                updateCredits();
+                updateCredits(1); // Deduct 1 credit
             }
 
             // Transition to the next step
@@ -1265,16 +1251,98 @@ function VideoAnalysisDisplay({ analysis, topic, onGenerationComplete }: VideoAn
     );
 }
 
+// TASK 3: Updated Props interface
 interface VideoGenerationOutputProps {
     content: string | string[];
     type: VideoOutputType;
     onReset: () => void;
+    // NEW: Props required for cross-generation
+    analysis: AnalysisResult;
+    topic: string;
+    getToken: Function;
+    updateCredits: (amount?: number) => void;
+    onUpdateGeneration: (content: string | string[], type: VideoOutputType) => void;
+    creditBalance: number;
 }
 
-function VideoGenerationOutput({ content, type, onReset }: VideoGenerationOutputProps) {
+// TASK 2 & 3: Updated Component
+function VideoGenerationOutput({ content, type, onReset, analysis, topic, getToken, updateCredits, onUpdateGeneration, creditBalance }: VideoGenerationOutputProps) {
     const [copyStatus, setCopyStatus] = useState('');
+    // NEW: State for cross-generation loading/error
+    const [isCrossGenerating, setIsCrossGenerating] = useState(false);
+    const [crossGenError, setCrossGenError] = useState('');
 
     const isPromptArray = Array.isArray(content);
+    const alternateType: VideoOutputType = type === 'Script' ? 'AI Video Prompts' : 'Script';
+
+    // TASK 2: Handle "Copy All"
+    const handleCopyAllPrompts = () => {
+        if (isPromptArray) {
+            // Join with double newline for separation when pasting
+            const allPrompts = content.join('\n\n');
+            handleCopy(allPrompts, false, setCopyStatus, 'copy-all');
+        }
+    };
+
+    // TASK 3: Handle Cross-Generation
+    const handleCrossGenerate = async () => {
+        setCrossGenError('');
+        
+        // NOTE: Implementing this by charging 1 credit as fractional credits (0.5) are likely not supported.
+        const requiredCredits = 1; 
+
+        if (creditBalance < requiredCredits) {
+            setCrossGenError("You do not have enough credits for this generation.");
+            return;
+        }
+        setIsCrossGenerating(true);
+
+        try {
+            // 1. Generate the alternate content (using existing backend endpoint)
+            const response = await fetch(`${BACKEND_API_URL}/api/generate-content`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    topic: topic,
+                    outputType: alternateType,
+                    analysis: analysis
+                }),
+            });
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error || 'Cross-generation failed');
+            }
+
+            const data = await response.json();
+            if (!data.content) {
+                throw new Error("Received empty content from generation API.");
+            }
+
+            // 2. Deduct the credit
+            const authToken = await getToken({ template: 'supabase' });
+            if (!authToken) throw new Error("Could not get token to decrement credits.");
+            
+            // NOTE: We are calling the standard decrement function (deducts 1 credit).
+            const { error: decrementError } = await supabase.functions.invoke('decrement-credits', { headers: { Authorization: `Bearer ${authToken}` } });
+
+            if (decrementError) {
+                console.error("Credit decrement failed, but generation succeeded.", decrementError);
+                // Proceed as generation was successful
+            } else {
+                updateCredits(requiredCredits);
+            }
+
+            // 3. Update the UI with the new content
+            onUpdateGeneration(data.content, alternateType);
+
+        } catch (err: any) {
+            setCrossGenError(err.message);
+        } finally {
+            setIsCrossGenerating(false);
+        }
+    };
+
 
     // Generation Output UI
     return (
@@ -1284,25 +1352,36 @@ function VideoGenerationOutput({ content, type, onReset }: VideoGenerationOutput
             <div className="mt-6 bg-black/20 border border-[rgba(255,255,255,0.1)] rounded-lg p-4">
                 {isPromptArray ? (
                     // VEO Prompts Display
-                    <div className="space-y-4">
-                        {content.map((prompt, index) => (
-                            <div key={index} className="bg-black/40 p-3 rounded-md border border-white/10 flex justify-between items-start gap-3">
-                                 <textarea
-                                    className="w-full bg-transparent text-sm text-brand-light/80 resize-y focus:outline-none"
-                                    rows={3}
-                                    value={prompt}
-                                    readOnly
-                                />
-                                <button
-                                    onClick={() => handleCopy(prompt, false, setCopyStatus, `prompt-${index}`)}
-                                    className="text-sm text-[#8A8A8E] hover:text-white transition-colors bg-white/10 p-2 rounded-md"
-                                    title="Copy prompt"
-                                >
-                                    {copyStatus === `prompt-${index}` ? 'Copied!' : <CopyIcon />}
-                                </button>
-                            </div>
-                        ))}
-                    </div>
+                    <>
+                        {/* TASK 2: Add Copy All Button */}
+                         <div className="flex justify-end mb-4">
+                            <button
+                                onClick={handleCopyAllPrompts}
+                                className="flex items-center gap-2 text-sm text-[#8A8A8E] hover:text-white transition-colors bg-white/10 px-3 py-1 rounded-md"
+                            >
+                                <CopyIcon /> {copyStatus === 'copy-all' ? 'Copied All!' : 'Copy All Prompts'}
+                            </button>
+                        </div>
+                        <div className="space-y-4">
+                            {content.map((prompt, index) => (
+                                <div key={index} className="bg-black/40 p-3 rounded-md border border-white/10 flex justify-between items-start gap-3">
+                                    <textarea
+                                        className="w-full bg-transparent text-sm text-brand-light/80 resize-y focus:outline-none"
+                                        rows={3}
+                                        value={prompt}
+                                        readOnly
+                                    />
+                                    <button
+                                        onClick={() => handleCopy(prompt, false, setCopyStatus, `prompt-${index}`)}
+                                        className="text-sm text-[#8A8A8E] hover:text-white transition-colors bg-white/10 p-2 rounded-md"
+                                        title="Copy prompt"
+                                    >
+                                        {copyStatus === `prompt-${index}` ? 'Copied!' : <CopyIcon />}
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </>
                 ) : (
                     // Script Display
                     <div>
@@ -1319,13 +1398,32 @@ function VideoGenerationOutput({ content, type, onReset }: VideoGenerationOutput
                 )}
             </div>
 
-            <div className="w-full rounded-lg bg-gradient-to-r from-[#007BFF] to-[#E600FF] p-[2px] transition-all duration-300 hover:shadow-[0_0_15px_0_rgba(128,0,255,0.4)]">
+            {/* TASK 3: Cross-Generation Error Display */}
+            {crossGenError && (<div className="bg-red-500/20 border border-red-500/30 text-red-300 px-4 py-3 rounded-lg text-sm" role="alert"><strong className="font-bold">Error: </strong><span>{crossGenError}</span></div>)}
+
+            {/* Action Buttons */}
+            <div className="space-y-4">
+                 {/* TASK 3: Cross-Generation Button */}
                 <button
-                    onClick={onReset}
-                    className="w-full px-6 py-3 font-bold text-white bg-[#111115] rounded-md hover:bg-gray-800 transition-all duration-300"
+                    onClick={handleCrossGenerate}
+                    disabled={isCrossGenerating}
+                    // Styling this button differently (secondary style)
+                    className="w-full px-6 py-3 font-bold text-white bg-gray-700 rounded-lg hover:bg-gray-600 transition-all duration-300 shadow-md disabled:opacity-50 flex items-center justify-center"
                 >
-                    Start New Analysis (1 Credit)
+                    {isCrossGenerating ? <Spinner /> : null}
+                    {/* NOTE: Displaying 1 Credit as 0.5 is likely not supported */}
+                    Generate {alternateType} (1 Credit)
                 </button>
+
+                {/* Reset Button */}
+                <div className="w-full rounded-lg bg-gradient-to-r from-[#007BFF] to-[#E600FF] p-[2px] transition-all duration-300 hover:shadow-[0_0_15px_0_rgba(128,0,255,0.4)]">
+                    <button
+                        onClick={onReset}
+                        className="w-full px-6 py-3 font-bold text-white bg-[#111115] rounded-md hover:bg-gray-800 transition-all duration-300"
+                    >
+                        Start New Analysis (1 Credit)
+                    </button>
+                </div>
             </div>
         </div>
     );
