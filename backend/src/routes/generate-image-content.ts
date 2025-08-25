@@ -47,7 +47,7 @@ You are an expert prompt engineer for the text-to-image model Imagen 4. Your tas
 - Integrate the 'user_topic' and 'user_details' seamlessly into this scene.
 - Use the 'style_elements' from the analysis as a strong foundation for the visual description.
 - The Creative Freedom Level dictates how much you should deviate from the original scene. 0.0 means a very faithful adaptation. 1.0 means a highly creative, almost abstract reinterpretation that still includes the core subjects and topic.
-- **CRITICAL:** Never generate TEXT, WORDS, OR LETTERS. Do not include any instructions that might generate text.
+- **CRITICAL:** The prompt must never generate nor request TEXT, WORDS, OR LETTERS. Do not include any instructions that might generate text.
 
 Your output must be a single, concise, and descriptive prompt paragraph for Imagen 4, and nothing else.
 `;
@@ -66,7 +66,7 @@ You are an expert prompt engineer for the text-to-image model Imagen 4. Your tas
 - Your prompt's subject matter must ONLY come from the 'user_topic' and 'user_details'.
 - You MUST use the descriptions in the 'style_elements' object (artistic_medium, lighting, color_palette, composition, etc.) to define the visual style of the new image.
 - The Style Adherence Level dictates how strictly you must follow these style rules. 0.0 is loosely inspired. 1.0 is a near-perfect stylistic replication.
-- **CRITICAL:** Never generate TEXT, WORDS, OR LETTERS. Do not include any instructions that might generate text.
+- **CRITICAL:** The prompt must never generate nor request TEXT, WORDS, OR LETTERS. Do not include any instructions that might generate text.
 
 Your output must be a single, concise, and descriptive prompt paragraph for Imagen 4, and nothing else.
 `;
