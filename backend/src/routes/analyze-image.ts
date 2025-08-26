@@ -1,39 +1,20 @@
 // File: backend/src/routes/analyze-image.ts
-
 import { Request, Response } from 'express';
-import { Part } from '@google-cloud/vertexai';
-// UPDATE: Import the regional client
-import { vertexAIRegional } from '../services';
+import { Part } from '@google/genai';
+import { genAI } from '../services';
 
 const GEMINI_MODEL = 'gemini-2.5-flash';
 
-// Define the structure based on the PDF requirements
 export interface ImageAnalysis {
-    subjects: Array<{
-        name: string;
-        description: string;
-        prominence: string;
-    }>;
-    setting: {
-        location: string;
-        time_of_day: string;
-        context: string;
-    };
+    subjects: Array<{ name: string; description: string; prominence: string; }>;
+    setting: { location: string; time_of_day: string; context: string; };
     style_elements: {
-        artistic_medium: string;
-        photography_style: string;
-        lighting: string;
-        color_palette: {
-            dominant_colors: string[];
-            description: string;
-        };
-        composition: string;
-        overall_mood: string;
+        artistic_medium: string; photography_style: string; lighting: string;
+        color_palette: { dominant_colors: string[]; description: string; };
+        composition: string; overall_mood: string;
     };
 }
 
-
-// The analysis prompt requested in the PDF (Step 1).
 const ANALYSIS_PROMPT_INSTRUCTIONS = `
 You are an expert image analyst. Analyze the user-uploaded image and return a JSON object with the following schema. Be as detailed and specific as possible in your descriptions.
 
@@ -67,10 +48,8 @@ The JSON schema:
 }
 `;
 
-
 export const analyzeImageRoute = async (req: Request, res: Response) => {
     try {
-        // Handle Image Upload (Assumes Multer or similar middleware is configured for this route)
         const sourceImage: any =
             (req as any).file ||
             (req as any).files?.sourceImage ||
@@ -78,7 +57,6 @@ export const analyzeImageRoute = async (req: Request, res: Response) => {
 
         if (!sourceImage) return res.status(400).json({ error: 'Source image file is required.' });
 
-        // Prepare Image Buffer
         const buf: Buffer =
             sourceImage.buffer ||
             sourceImage.data ||
@@ -89,16 +67,7 @@ export const analyzeImageRoute = async (req: Request, res: Response) => {
         if (!buf) return res.status(400).json({ error: 'Could not read uploaded image.' });
         const mimeType = sourceImage.mimetype || 'image/png';
 
-        console.log("[Image Analysis] Starting Analysis via Vertex AI...");
-
-        // Configure the model for JSON output.
-        // UPDATE: Use the Regional client
-        const model = vertexAIRegional.getGenerativeModel({
-            model: GEMINI_MODEL,
-            generationConfig: {
-                responseMimeType: "application/json",
-            }
-        });
+        console.log("[Image Analysis] Starting Analysis via Unified Vertex AI SDK...");
 
         const imagePart: Part = {
             inlineData: {
@@ -107,18 +76,16 @@ export const analyzeImageRoute = async (req: Request, res: Response) => {
             },
         };
 
-        // The prompt structure is [Instructions, Image to Analyze]
-        const response = await model.generateContent({
+        const result = await genAI.models.generateContent({
+            model: GEMINI_MODEL,
             contents: [{ role: 'user', parts: [{ text: ANALYSIS_PROMPT_INSTRUCTIONS }, imagePart] }],
         });
 
-        const text = response.response?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('') || '{}';
+        const text = result.text ?? '';
 
         try {
             const parsed: ImageAnalysis = JSON.parse(text);
-            // Basic validation of the structure
             if (!parsed.subjects || !parsed.setting || !parsed.style_elements) {
-                console.error("Analysis JSON did not meet the required schema:", text);
                 throw new Error("Analysis JSON did not meet the required schema.");
             }
             return res.status(200).json({ analysis: parsed });
@@ -131,11 +98,9 @@ export const analyzeImageRoute = async (req: Request, res: Response) => {
         console.error('--- FATAL ERROR in /api/analyze-image ---', error);
         const code = Number(error?.code || error?.status) || 500;
         let message = error?.message || 'An internal server error occurred during analysis.';
-
-        if (code === 429 || /RESOURCE_EXHAUSTED|Too Many Requests|Quota exceeded/i.test(message)) {
+        if (code === 429 || /RESOURCE_EXHAUSTED/i.test(message)) {
             message = "The service is currently overloaded (429). Please wait and try again.";
         }
-
         return res.status(code >= 400 && code < 600 ? code : 500).json({ error: message });
     }
 };

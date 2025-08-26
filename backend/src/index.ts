@@ -36,13 +36,12 @@ app.use(cors(corsOptions));
 
 // --- Body Parsing Middleware Configuration (Revised) ---
 
-// 1. Handle the Clerk Webhook first, as it requires the raw body.
 // We apply the raw parser specifically to this route before the global JSON parser.
+// 1. Handle the Clerk Webhook first, as it requires the raw body.
 app.post('/api/clerk-webhook', express.raw({ type: 'application/json' }), clerkWebhookRoute);
 
 // 2. Apply standard JSON parsing globally for other routes.
-// The JSON parser ignores requests that are not Content-Type: application/json (like file uploads).
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
 
 
 // --- Routes (Updated) ---

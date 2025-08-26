@@ -1,11 +1,10 @@
 // File: backend/src/routes/generate-content.ts
-
 import { Request, Response } from 'express';
-// UPDATE: Import the regional client
-import { vertexAIRegional } from '../services';
+import { genAI } from '../services';
 
 const GEMINI_MODEL = 'gemini-2.5-flash';
 
+// Templates for generation remain unchanged.
 const SCRIPT_GENERATION_TEMPLATE = `
 You are an expert video scriptwriter specializing in short-form, vertical content (TikTok, Reels, Shorts). Use the provided viral analysis blueprint to write a new video script.
 
@@ -15,7 +14,7 @@ Source Analysis Blueprint (Reference DNA):
 New Topic: \${USER_TOPIC}
 
 Instructions:
-1. Create a complete short-form script (approx. 45-90 seconds).
+1. Create a complete short-form script (approx. 35-90 seconds).
 2. You MUST adapt the techniques identified in the Blueprint to the new script.
 3. Hook: Replicate the style described in 'hook_analysis.technique' and 'hook_analysis.pacing'.
 4. Pacing and Structure: Mirror the 'retention_signals.narrative_structure'.
@@ -33,7 +32,7 @@ Source Analysis Blueprint:
 New Topic: \${USER_TOPIC}
 
 Instructions:
-1. Storyboard the New Topic for a short-form video (45-90 seconds), breaking it down into 5-10 distinct scenes.
+1. Storyboard the New Topic for a short-form video (35-90 seconds), breaking it down into 5-10 distinct scenes.
 2. Ensure the narrative flow matches the 'retention_signals.narrative_structure'.
 3. The visual aesthetic MUST match 'retention_signals.visual_style' and be optimized for vertical viewing.
 
@@ -69,20 +68,12 @@ export const generateContentRoute = async (req: Request, res: Response) => {
                 .replace('${USER_TOPIC}', topic);
         }
 
-        // UPDATE: Use the Regional client
-        const generativeModel = vertexAIRegional.getGenerativeModel({
+        const result = await genAI.models.generateContent({
             model: GEMINI_MODEL,
-        });
-
-        const result = await generativeModel.generateContent({
             contents: [{ role: "user", parts: [{ text: generationPrompt }] }],
-            generationConfig: {
-                responseMimeType: isJsonOutput ? "application/json" : "text/plain",
-            }
         });
 
-        const response = result.response;
-        const generationText = response.candidates?.[0]?.content?.parts?.[0]?.text;
+        const generationText = result.text ?? '';
 
         if (!generationText) {
             return res.status(500).json({ error: 'AI generation returned an empty response.' });

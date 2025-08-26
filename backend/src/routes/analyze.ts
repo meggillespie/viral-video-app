@@ -1,9 +1,7 @@
 // File: backend/src/routes/analyze.ts
 import { Request, Response } from 'express';
-import { Part } from '@google-cloud/vertexai';
-// UPDATE: Import the regional client
-import { vertexAIRegional } from '../services';
-
+import { Part } from '@google/genai';
+import { genAI } from '../services';
 
 const ANALYSIS_PROMPT = `
 You are Vyralize, an expert AI system designed to deconstruct the virality of video content. Analyze the provided source video (multimodal input: visuals, audio, pacing, transcript) and extract key performance signals. Focus on elements relevant to short-form vertical video.
@@ -33,6 +31,8 @@ The JSON structure must adhere to the following schema:
 }
 `;
 
+const GEMINI_MODEL = 'gemini-2.5-flash';
+
 export const analyzeRoute = async (req: Request, res: Response) => {
     try {
         const { videoSource, mimeType } = req.body;
@@ -40,7 +40,6 @@ export const analyzeRoute = async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Missing videoSource or mimeType.' });
         }
 
-        // FIX: Use the 'Part' interface as the type
         const videoPart: Part = {
             fileData: {
                 mimeType: mimeType,
@@ -48,22 +47,14 @@ export const analyzeRoute = async (req: Request, res: Response) => {
             },
         };
 
-        console.log('Starting Analysis via Vertex AI...');
+        console.log('Starting Analysis via Unified Vertex AI SDK...');
 
-        // UPDATE: Use the Regional client
-        const generativeModel = vertexAIRegional.getGenerativeModel({
-            model: 'gemini-2.5-flash',
-        });
-
-        const result = await generativeModel.generateContent({
+        const result = await genAI.models.generateContent({
+            model: GEMINI_MODEL,
             contents: [{ role: "user", parts: [{ text: ANALYSIS_PROMPT }, videoPart] }],
-            generationConfig: {
-                responseMimeType: "application/json",
-            }
         });
 
-        const response = result.response;
-        const analysisText = response.candidates?.[0]?.content?.parts?.[0]?.text;
+        const analysisText = result.text ?? '';
 
         if (!analysisText) {
             return res.status(500).json({ error: 'AI analysis returned an empty response.' });

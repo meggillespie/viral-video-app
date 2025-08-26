@@ -1,10 +1,6 @@
 // File: backend/src/services.ts
-// You can copy and paste this entire block into your services.ts file.
-
 import { createClient } from '@supabase/supabase-js';
-import { VertexAI } from '@google-cloud/vertexai';
-import { PredictionServiceClient } from '@google-cloud/aiplatform';
-import { GoogleGenAI } from '@google/genai';
+import {GoogleGenAI} from '@google/genai';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -12,7 +8,7 @@ dotenv.config();
 // --- Environment Variables ---
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
+// Project and Location are now required for the unified Vertex AI client.
 const GOOGLE_CLOUD_PROJECT = process.env.GOOGLE_CLOUD_PROJECT;
 const GOOGLE_CLOUD_LOCATION = process.env.GOOGLE_CLOUD_LOCATION;
 
@@ -20,38 +16,27 @@ const GOOGLE_CLOUD_LOCATION = process.env.GOOGLE_CLOUD_LOCATION;
 if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
   throw new Error('FATAL: Missing Supabase environment variables.');
 }
+// This new client configuration relies on the Google Cloud Project and Location.
+// Authentication is handled automatically in the Cloud Run environment (via ADC).
 if (!GOOGLE_CLOUD_PROJECT || !GOOGLE_CLOUD_LOCATION) {
   console.error("Environment Check Failed:");
   console.error("Detected GOOGLE_CLOUD_PROJECT:", GOOGLE_CLOUD_PROJECT);
   console.error("Detected GOOGLE_CLOUD_LOCATION:", GOOGLE_CLOUD_LOCATION);
-  throw new Error('FATAL: Missing Google Cloud project or location configuration.');
-}
-if (!GOOGLE_API_KEY) {
-  throw new Error('FATAL: Missing GOOGLE_API_KEY for the Gemini File API.');
+  throw new Error('FATAL: Missing Google Cloud project or location configuration for Vertex AI.');
 }
 
-console.log(`Initializing Services. Project: ${GOOGLE_CLOUD_PROJECT}, Location: ${GOOGLE_CLOUD_LOCATION}`);
+console.log(`Initializing Unified Vertex AI Services. Project: ${GOOGLE_CLOUD_PROJECT}, Location: ${GOOGLE_CLOUD_LOCATION}`);
 
 // --- Clients ---
 export const supabaseAdmin = createClient(SUPABASE_URL!, SUPABASE_SERVICE_KEY!);
 
-// This client is for Gemini text generation, which uses the modern 'generateContent' API.
-export const vertexAIRegional = new VertexAI({
+// The single client for all Gemini and Imagen interactions via Vertex AI.
+// The `vertexai: true` flag routes all requests through your Google Cloud project.
+export const genAI = new GoogleGenAI({
+  vertexai: true,
   project: GOOGLE_CLOUD_PROJECT,
   location: GOOGLE_CLOUD_LOCATION,
 });
-
-// This client is specifically for the Imagen ':predict' endpoint (the workaround).
-// It targets the regional endpoint where the working quota was applied.
-export const predictionClient = new PredictionServiceClient({
-    apiEndpoint: `${GOOGLE_CLOUD_LOCATION}-aiplatform.googleapis.com`,
-});
-
-export const genAI = new GoogleGenAI({ apiKey: GOOGLE_API_KEY! });
-
-
-
-
 
 
 
