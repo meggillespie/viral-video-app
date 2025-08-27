@@ -129,19 +129,21 @@ async function generateImageFromPrompt(finalImagePrompt: string): Promise<{ base
             includeRaiReason: true,
         },
     });
+
     console.debug('imageBytes img... ' + response?.generatedImages?.[0]?.image?.imageBytes);
 
-    const imageBytes = response?.generatedImages?.[0]?.image?.imageBytes;
+    // FIX: The SDK's TypeScript types may be out of sync with the actual API response.
+    // We cast to 'any' to bypass the build error and access the 'b64' property,
+    // which contains the correctly formatted Base64 string provided by the API.
+    const base64Data = (response?.generatedImages?.[0] as any)?.b64;
 
-    if (!imageBytes) {
-        // FIX: Removed the problematic reference to `raiReason`.
-        // The full response is still logged for debugging purposes.
+    console.debug('base64Data img... ' + base64Data);
+
+
+    if (!base64Data) {
         console.error(`Image generation failed. Full response:`, JSON.stringify(response, null, 2));
         throw new Error(`No image returned by model. Safety filters may have been triggered.`);
     }
-
-    // This correctly converts the raw byte data into a valid Base64 string.
-    const base64Data = Buffer.from(imageBytes).toString('base64');
 
     return {
         base64: base64Data,
