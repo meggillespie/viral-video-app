@@ -117,6 +117,7 @@ Your output must be a single, concise, and descriptive prompt paragraph for Imag
 //     };
 // }
 
+// Step 3: Generate Image (Unchanged)
 async function generateImageFromPrompt(finalImagePrompt: string): Promise<{ base64: string, mime: string }> {
     console.log(`[DEBUG] Final prompt sent to Imagen 4: "${finalImagePrompt}"`);
 
@@ -130,20 +131,21 @@ async function generateImageFromPrompt(finalImagePrompt: string): Promise<{ base
         },
     });
 
+    // FIX: This is the correct way to access the raw image data, as per the official documentation.
+    const imageBytes = response?.generatedImages?.[0]?.image?.imageBytes;
+
     console.debug('imageBytes img... ' + response?.generatedImages?.[0]?.image?.imageBytes);
 
-    // FIX: The SDK's TypeScript types may be out of sync with the actual API response.
-    // We cast to 'any' to bypass the build error and access the 'b64' property,
-    // which contains the correctly formatted Base64 string provided by the API.
-    const base64Data = (response?.generatedImages?.[0] as any)?.b64;
 
-    console.debug('base64Data img... ' + base64Data);
-
-
-    if (!base64Data) {
+    if (!imageBytes) {
+        // Log the full response for better debugging if no image is returned.
         console.error(`Image generation failed. Full response:`, JSON.stringify(response, null, 2));
         throw new Error(`No image returned by model. Safety filters may have been triggered.`);
     }
+
+    // This correctly converts the raw byte data (Uint8Array) into a valid Base64 string.
+    const base64Data = Buffer.from(imageBytes).toString('base64');
+    console.debug('base64Data img... ' + base64Data);
 
     return {
         base64: base64Data,
