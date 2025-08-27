@@ -93,18 +93,27 @@ Your output must be a single, concise, and descriptive prompt paragraph for Imag
 // Step 3: Generate Image (Unchanged)
 async function generateImageFromPrompt(finalImagePrompt: string): Promise<{ base64: string, mime: string }> {
     console.log(`[DEBUG] Final prompt sent to Imagen 4: "${finalImagePrompt}"`);
+
     const response = await genAI.models.generateImages({
         model: IMAGEN_MODEL,
         prompt: finalImagePrompt,
         config: { numberOfImages: 1, aspectRatio: "1:1" },
     });
+
+    // FIX: Reverted to using `.image.imageBytes` and converting the buffer.
     const imageBytes = response?.generatedImages?.[0]?.image?.imageBytes;
+
     if (!imageBytes) {
         console.error("Image generation failed. API response did not contain image data.", JSON.stringify(response, null, 2));
         throw new Error('No image returned by model. This may be due to safety filters.');
     }
+
     const base64Data = Buffer.from(imageBytes).toString('base64');
-    return { base64: base64Data, mime: 'image/png' };
+
+    return {
+        base64: base64Data,
+        mime: 'image/png', // The model generates PNG images.
+    };
 }
 
 // Step 4: Generate Social Text & Headline (UPDATED)
