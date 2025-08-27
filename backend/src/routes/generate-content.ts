@@ -2,9 +2,18 @@
 import { Request, Response } from 'express';
 import { genAI } from '../services';
 
+// Helper function to extract a JSON array string from a raw model response
+const cleanJsonArrayString = (rawString: string): string => {
+    const firstBracket = rawString.indexOf('[');
+    const lastBracket = rawString.lastIndexOf(']');
+    if (firstBracket === -1 || lastBracket === -1) {
+        return '[]';
+    }
+    return rawString.substring(firstBracket, lastBracket + 1);
+};
+
 const GEMINI_MODEL = 'gemini-2.5-flash';
 
-// Templates for generation remain unchanged.
 const SCRIPT_GENERATION_TEMPLATE = `
 You are an expert video scriptwriter specializing in short-form, vertical content (TikTok, Reels, Shorts). Use the provided viral analysis blueprint to write a new video script.
 
@@ -55,14 +64,12 @@ export const generateContentRoute = async (req: Request, res: Response) => {
 
         const analysisString = JSON.stringify(analysis);
         let generationPrompt = '';
-        let isJsonOutput = false;
 
         if (outputType === 'Script') {
             generationPrompt = SCRIPT_GENERATION_TEMPLATE
                 .replace('${ANALYSIS_JSON}', analysisString)
                 .replace('${USER_TOPIC}', topic);
         } else { // AI Video Prompts
-            isJsonOutput = true;
             generationPrompt = VEO_GENERATION_TEMPLATE
                 .replace('${ANALYSIS_JSON}', analysisString)
                 .replace('${USER_TOPIC}', topic);
@@ -80,10 +87,12 @@ export const generateContentRoute = async (req: Request, res: Response) => {
         }
 
         let finalContent;
-        if (isJsonOutput) {
+        if (outputType === 'AI Video Prompts') {
              try {
-                finalContent = JSON.parse(generationText);
+                const cleanedText = cleanJsonArrayString(generationText);
+                finalContent = JSON.parse(cleanedText);
             } catch (parseError) {
+                console.error("Failed to parse VEO prompts JSON. Raw Text:", generationText, parseError);
                 return res.status(500).json({ error: 'Failed to generate structured VEO prompts.' });
             }
         } else {

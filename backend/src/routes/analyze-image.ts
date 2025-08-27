@@ -5,6 +5,17 @@ import { genAI } from '../services';
 
 const GEMINI_MODEL = 'gemini-2.5-flash';
 
+// Helper function to extract a JSON string from a raw model response
+const cleanJsonString = (rawString: string): string => {
+    const firstBracket = rawString.indexOf('{');
+    const lastBracket = rawString.lastIndexOf('}');
+    if (firstBracket === -1 || lastBracket === -1) {
+        // Return an empty object string if no JSON object is found
+        return '{}';
+    }
+    return rawString.substring(firstBracket, lastBracket + 1);
+};
+
 export interface ImageAnalysis {
     subjects: Array<{ name: string; description: string; prominence: string; }>;
     setting: { location: string; time_of_day: string; context: string; };
@@ -57,12 +68,7 @@ export const analyzeImageRoute = async (req: Request, res: Response) => {
 
         if (!sourceImage) return res.status(400).json({ error: 'Source image file is required.' });
 
-        const buf: Buffer =
-            sourceImage.buffer ||
-            sourceImage.data ||
-            (typeof sourceImage.arrayBuffer === 'function'
-                ? Buffer.from(await sourceImage.arrayBuffer())
-                : undefined);
+        const buf: Buffer = sourceImage.buffer || sourceImage.data || (typeof sourceImage.arrayBuffer === 'function' ? Buffer.from(await sourceImage.arrayBuffer()) : undefined);
 
         if (!buf) return res.status(400).json({ error: 'Could not read uploaded image.' });
         const mimeType = sourceImage.mimetype || 'image/png';
@@ -70,10 +76,7 @@ export const analyzeImageRoute = async (req: Request, res: Response) => {
         console.log("[Image Analysis] Starting Analysis via Unified Vertex AI SDK...");
 
         const imagePart: Part = {
-            inlineData: {
-                data: buf.toString('base64'),
-                mimeType: mimeType,
-            },
+            inlineData: { data: buf.toString('base64'), mimeType },
         };
 
         const result = await genAI.models.generateContent({
@@ -84,13 +87,15 @@ export const analyzeImageRoute = async (req: Request, res: Response) => {
         const text = result.text ?? '';
 
         try {
-            const parsed: ImageAnalysis = JSON.parse(text);
+            const cleanedText = cleanJsonString(text);
+            const parsed: ImageAnalysis = JSON.parse(cleanedText);
+
             if (!parsed.subjects || !parsed.setting || !parsed.style_elements) {
                 throw new Error("Analysis JSON did not meet the required schema.");
             }
             return res.status(200).json({ analysis: parsed });
         } catch (error) {
-            console.error("Style analysis failed or returned invalid JSON:", text, error);
+            console.error("Style analysis failed or returned invalid JSON. Raw Text:", text, error);
             return res.status(500).json({ error: 'Failed to analyze image structure or returned invalid JSON.' });
         }
 

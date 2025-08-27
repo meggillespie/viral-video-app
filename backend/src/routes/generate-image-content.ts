@@ -2,6 +2,16 @@
 import { Request, Response } from 'express';
 import { genAI } from '../services';
 
+// Helper function to extract a JSON string from a raw model response
+const cleanJsonString = (rawString: string): string => {
+    const firstBracket = rawString.indexOf('{');
+    const lastBracket = rawString.lastIndexOf('}');
+    if (firstBracket === -1 || lastBracket === -1) {
+        return '{}';
+    }
+    return rawString.substring(firstBracket, lastBracket + 1);
+};
+
 interface ImageAnalysis {
     subjects: Array<{ name: string; description: string; prominence: string; }>;
     setting: { location: string; time_of_day: string; context: string; };
@@ -16,9 +26,7 @@ type GenerationIntent = 'AdaptRemix' | 'ExtractStyle';
 const GEMINI_MODEL = 'gemini-2.5-flash';
 const IMAGEN_MODEL = 'imagen-4.0-generate-001';
 
-// ============================================================================
-// Step 2: Generate Optimized Image Prompt (Gemini)
-// ============================================================================
+// Step 2: Generate Optimized Image Prompt (Unchanged)
 async function buildOptimizedPrompt(
     analysis: ImageAnalysis, topic: string, details: string,
     intent: GenerationIntent, controlLevel: number
@@ -77,42 +85,29 @@ Your output must be a single, concise, and descriptive prompt paragraph for Imag
         model: GEMINI_MODEL,
         contents: [{ role: 'user', parts: [{ text: masterPromptForGemini }] }]
     });
-
     const text = result.text ?? '';
-
     if (!text) throw new Error("Failed to generate the image prompt.");
     return text.trim();
 }
 
-// ============================================================================
-// Step 3: Generate Image (Imagen 4 via the new `generateImages` method)
-// ============================================================================
-// This function was already using the correct new syntax. No changes needed.
+// Step 3: Generate Image (Unchanged)
 async function generateImageFromPrompt(finalImagePrompt: string): Promise<{ base64: string, mime: string }> {
     console.log(`[DEBUG] Final prompt sent to Imagen 4: "${finalImagePrompt}"`);
-
     const response = await genAI.models.generateImages({
         model: IMAGEN_MODEL,
         prompt: finalImagePrompt,
-        config: {
-            numberOfImages: 1,
-            aspectRatio: "1:1",
-        },
+        config: { numberOfImages: 1, aspectRatio: "1:1" },
     });
-
     const imageBytes = response?.generatedImages?.[0]?.image?.imageBytes;
     if (!imageBytes) {
         console.error("Image generation failed. API response did not contain image data.", JSON.stringify(response, null, 2));
         throw new Error('No image returned by model. This may be due to safety filters.');
     }
-
     const base64Data = Buffer.from(imageBytes).toString('base64');
     return { base64: base64Data, mime: 'image/png' };
 }
 
-// ============================================================================
-// Step 4: Generate Social Text & Headline (Gemini)
-// ============================================================================
+// Step 4: Generate Social Text & Headline (UPDATED)
 async function generateSocialText(topic: string, analysis: ImageAnalysis, finalImagePrompt: string) {
     const subjectNames = analysis.subjects.map(s => s.name).join(', ') || 'N/A';
     const styleMood = analysis.style_elements.overall_mood || 'N/A';
@@ -144,7 +139,9 @@ You are an expert social media manager. Based on the provided information, gener
     const text = result.text ?? '';
 
     try {
-        const parsed = JSON.parse(text);
+        const cleanedText = cleanJsonString(text);
+        const parsed = JSON.parse(cleanedText);
+
         let instagramPost: string;
         if (typeof parsed.instagram === 'object' && parsed.instagram !== null) {
             const ig = parsed.instagram;
@@ -162,7 +159,7 @@ You are an expert social media manager. Based on the provided information, gener
             facebook: parsed.facebook || '',
         };
     } catch (parseError) {
-        console.error("Failed to parse social text JSON. Raw model output:", text, parseError);
+        console.error("Failed to parse social text JSON. Raw Text:", text, parseError);
         return { linkedin: '', twitter: '', instagram: '', facebook: ''};
     }
 }
@@ -188,7 +185,6 @@ Provide ONLY the headline text. Do not include quotes, labels, or any other form
             model: GEMINI_MODEL,
             contents: [{ role: 'user', parts: [{ text: prompt }] }]
         });
-
         const text = result.text ?? '';
         return text.trim().length > 0 ? text.trim() : null;
     } catch (error) {
@@ -197,9 +193,7 @@ Provide ONLY the headline text. Do not include quotes, labels, or any other form
     }
 }
 
-// ============================================================================
-// Main Route Handler
-// ============================================================================
+// Main Route Handler (Unchanged)
 export const generateImageContentRoute = async (req: Request, res: Response) => {
     let currentStep = "Initialization";
     try {
@@ -234,3 +228,4 @@ export const generateImageContentRoute = async (req: Request, res: Response) => 
         return res.status(code >= 400 && code < 600 ? code : 500).json({ error: message });
     }
 };
+

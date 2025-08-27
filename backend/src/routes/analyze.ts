@@ -3,6 +3,16 @@ import { Request, Response } from 'express';
 import { Part } from '@google/genai';
 import { genAI } from '../services';
 
+// Helper function to extract a JSON string from a raw model response
+const cleanJsonString = (rawString: string): string => {
+    const firstBracket = rawString.indexOf('{');
+    const lastBracket = rawString.lastIndexOf('}');
+    if (firstBracket === -1 || lastBracket === -1) {
+        return '{}';
+    }
+    return rawString.substring(firstBracket, lastBracket + 1);
+};
+
 const ANALYSIS_PROMPT = `
 You are Vyralize, an expert AI system designed to deconstruct the virality of video content. Analyze the provided source video (multimodal input: visuals, audio, pacing, transcript) and extract key performance signals. Focus on elements relevant to short-form vertical video.
 
@@ -61,10 +71,12 @@ export const analyzeRoute = async (req: Request, res: Response) => {
         }
 
         try {
-            const analysisJson = JSON.parse(analysisText);
+            // FIX: Use the cleaning function before parsing.
+            const cleanedText = cleanJsonString(analysisText);
+            const analysisJson = JSON.parse(cleanedText);
             return res.status(200).json({ analysis: analysisJson });
         } catch (parseError) {
-            console.error("Failed to parse analysis JSON:", analysisText);
+            console.error("Failed to parse analysis JSON. Raw Text:", analysisText, parseError);
             return res.status(500).json({ error: 'Failed to analyze video structure.' });
         }
 
