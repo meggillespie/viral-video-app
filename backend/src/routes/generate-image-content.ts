@@ -100,7 +100,6 @@ async function generateImageFromPrompt(finalImagePrompt: string): Promise<{ base
         config: { numberOfImages: 1, aspectRatio: "1:1" },
     });
 
-    // FIX: Reverted to using `.image.imageBytes` and converting the buffer.
     const imageBytes = response?.generatedImages?.[0]?.image?.imageBytes;
 
     if (!imageBytes) {
@@ -112,7 +111,7 @@ async function generateImageFromPrompt(finalImagePrompt: string): Promise<{ base
 
     return {
         base64: base64Data,
-        mime: 'image/png', // The model generates PNG images.
+        mime: 'image/png',
     };
 }
 
