@@ -117,7 +117,7 @@ Your output must be a single, concise, and descriptive prompt paragraph for Imag
 //     };
 // }
 
-// Step 3: Generate Image (Unchanged)
+// Step 3: Generate Image (CORRECTED)
 async function generateImageFromPrompt(finalImagePrompt: string): Promise<{ base64: string, mime: string }> {
     console.log(`[DEBUG] Final prompt sent to Imagen 4: "${finalImagePrompt}"`);
 
@@ -131,27 +131,45 @@ async function generateImageFromPrompt(finalImagePrompt: string): Promise<{ base
         },
     });
 
-    // FIX: This is the correct way to access the raw image data, as per the official documentation.
-    const imageBytes = response?.generatedImages?.[0]?.image?.imageBytes;
+    const firstResult = response?.generatedImages?.[0];
+
+    // --- FIX START: Cast to 'any' to resolve TypeScript error ---
+
+    // 1. Explicitly check for a safety block reason first.
+    // We use '(firstResult as any)' to bypass the strict type check.
+    if (firstResult && (firstResult as any).raiReason) {
+        console.error(`Image generation BLOCKED by safety filters. Reason: ${(firstResult as any).raiReason}`);
+        // Throw a structured error with a specific status code.
+        throw {
+            status: 422,
+            message: `Image generation blocked due to safety policy: ${(firstResult as any).raiReason}`
+        };
+    }
+
+    // --- FIX END ---
+
+    // 2. Now, check if the image data itself is missing for any other reason.
+    const imageBytes = firstResult?.image?.imageBytes;
+    if (!imageBytes) {
+        console.error(`Image generation failed. Full response:`, JSON.stringify(response, null, 2));
+        throw {
+            status: 500,
+            message: 'Image generation failed: API response did not contain image data or a safety reason.'
+        };
+    }
 
     console.debug('imageBytes img... ' + response?.generatedImages?.[0]?.image?.imageBytes);
 
 
-    if (!imageBytes) {
-        // Log the full response for better debugging if no image is returned.
-        console.error(`Image generation failed. Full response:`, JSON.stringify(response, null, 2));
-        throw new Error(`No image returned by model. Safety filters may have been triggered.`);
-    }
-
-    // This correctly converts the raw byte data (Uint8Array) into a valid Base64 string.
     const base64Data = Buffer.from(imageBytes).toString('base64');
-    console.debug('base64Data img... ' + base64Data);
 
     return {
         base64: base64Data,
         mime: 'image/png',
     };
 }
+
+
 
 // Step 4: Generate Social Text & Headline (UPDATED)
 async function generateSocialText(topic: string, analysis: ImageAnalysis, finalImagePrompt: string) {
@@ -267,11 +285,18 @@ export const generateImageContentRoute = async (req: Request, res: Response) => 
         return res.status(200).json({ result });
 
     } catch (error: any) {
-        console.error(`--- FATAL ERROR in /api/generate-image-content (Step: ${currentStep}) ---`);
-        console.error("Error Message:", error.message);
-        const code = Number(error?.code || error?.status) || 500;
-        let message = error?.message || 'An internal server error occurred.';
-        return res.status(code >= 400 && code < 600 ? code : 500).json({ error: message });
+        console.error(`--- ERROR in /api/generate-image-content (Step: ${currentStep}) ---`);
+        console.error("Error Details:", error);
+
+        // --- FIX START: Handle structured errors from the generation function ---
+        const statusCode = error.status || 500;
+        const errorMessage = error.message || 'An internal server error occurred.';
+
+        return res.status(statusCode).json({
+            error: errorMessage,
+            step: currentStep,
+        });
+        // --- FIX END ---
     }
 };
 
