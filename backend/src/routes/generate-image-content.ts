@@ -105,7 +105,7 @@ async function generateImageFromPrompt(finalImagePrompt: string): Promise<{ base
 
     const response = await genAI.models.generateImages({
         model: IMAGEN_MODEL,
-        prompt: finalImagePrompt,
+        prompt: 'a puppy in a field',
         config: {
             numberOfImages: 1,
             aspectRatio: "1:1",
