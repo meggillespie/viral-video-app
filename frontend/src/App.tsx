@@ -561,8 +561,10 @@ function ImageAnalysisDisplay({ analysis, topic, details, imagePreview, onGenera
         }
 
         try {
-            // Call the updated generate-image-content endpoint
-            const response = await fetch(`${BACKEND_API_URL}/api/generate-image-content`, {
+        // --- FIX: Add a cache-busting parameter to the URL ---
+        const cacheBustUrl = `${BACKEND_API_URL}/api/generate-image-content?timestamp=${Date.now()}`;
+
+        const response = await fetch(cacheBustUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
