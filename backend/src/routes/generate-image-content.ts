@@ -234,6 +234,7 @@ Provide ONLY the headline text. Do not include quotes, labels, or any other form
 export const generateImageContentRoute = async (req: Request, res: Response) => {
     let currentStep = "Initialization";
     try {
+        console.log("--- BACKEND: TRY BLOCK EXECUTING ---"); // <-- ADD THIS
         const { topic, details, analysis, intent, controlLevel, withTextOverlay } = req.body;
         if (!topic || !analysis || !intent) {
             return res.status(400).json({ error: 'Missing required fields: topic, analysis, and intent.' });
@@ -258,10 +259,11 @@ export const generateImageContentRoute = async (req: Request, res: Response) => 
         return res.status(200).json({ result });
 
     } catch (error: any) {
+        console.log("--- BACKEND: CATCH BLOCK EXECUTING ---"); // <-- ADD THIS
+        
         console.error(`--- ERROR in /api/generate-image-content (Step: ${currentStep}) ---`);
         console.error("Error Details:", error);
 
-        // --- FIX START: Handle structured errors from the generation function ---
         const statusCode = error.status || 500;
         const errorMessage = error.message || 'An internal server error occurred.';
 
@@ -269,7 +271,6 @@ export const generateImageContentRoute = async (req: Request, res: Response) => 
             error: errorMessage,
             step: currentStep,
         });
-        // --- FIX END ---
     }
 };
 
