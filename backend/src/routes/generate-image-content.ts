@@ -102,7 +102,7 @@ async function generateImageFromPrompt(finalImagePrompt: string): Promise<{ base
             numberOfImages: 1,
             aspectRatio: "1:1",
             includeRaiReason: true,
-            safetyFilterLevel: SafetyFilterLevel.BLOCK_NONE
+            safetyFilterLevel: SafetyFilterLevel.BLOCK_ONLY_HIGH
         },
     });
 
