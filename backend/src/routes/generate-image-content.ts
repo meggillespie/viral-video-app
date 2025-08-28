@@ -32,9 +32,14 @@ async function buildOptimizedPrompt(
     analysis: ImageAnalysis, topic: string, details: string,
     intent: GenerationIntent, controlLevel: number
 ): Promise<string> {
-    const analysisJsonString = JSON.stringify(analysis);
+
+    // --- 1. Sanitize Inputs ---
+    const sanitizedTopic = topic.replace(/adobe firefly 4|adobe firefly/gi, 'advanced digital art');
+    const sanitizedAnalysisString = JSON.stringify(analysis)
+        .replace(/adobe firefly 4|adobe firefly/gi, 'advanced digital art');
     const normalizedControlLevel = (controlLevel / 100).toFixed(2);
     
+    // --- 2. Add New Rule to Gemini's Instructions ---
     const PROMPT_TEMPLATE_ADAPT_REMIX = `
 You are an expert prompt engineer for the text-to-image model Imagen 4. Your task is to synthesize information to create a new, highly effective image prompt.
 
@@ -49,9 +54,9 @@ You are an expert prompt engineer for the text-to-image model Imagen 4. Your tas
 - The main subject(s) from 'subjects.name' and the general context from 'setting.context' MUST be present in the new prompt.
 - Integrate the 'user_topic' and 'user_details' seamlessly into this scene.
 - Use the 'style_elements' from the analysis as a strong foundation for the visual description.
-- The Creative Freedom Level dictates how much you should deviate from the original scene. 0.0 means a very faithful adaptation. 1.0 means a highly creative, almost abstract reinterpretation that still includes the core subjects and topic.
-- **CRITICAL:** The final image must contain absolutely no TEXT, WORDS, OR LETTERS. Do not include any instructions that might generate text.
-
+- The Creative Freedom Level dictates how much you should deviate from the original scene.
+- **CRITICAL:** Avoid mentioning specific brand names, artist names (unless provided by the user), or other AI tools. Generalize concepts (e.g., instead of "in the style of Adobe Firefly," say "in a hyper-realistic digital art style").
+- **CRITICAL:** The final image must contain absolutely no TEXT, WORDS, OR LETTERS.
 
 Your output must be a single, concise, and descriptive prompt paragraph for Imagen 4, and nothing else.
 `;
@@ -66,19 +71,22 @@ You are an expert prompt engineer for the text-to-image model Imagen 4. Your tas
 
 **INSTRUCTIONS:**
 - Your primary goal is to create a new image about the 'user_topic' that meticulously recreates the *style* of the original image.
-- **CRITICAL:** You MUST IGNORE the 'subjects' and 'setting' fields from the Image Analysis JSON. Do NOT include the original people, objects, or locations in your prompt.
+- **CRITICAL:** You MUST IGNORE the 'subjects' and 'setting' fields from the Image Analysis JSON.
 - Your prompt's subject matter must ONLY come from the 'user_topic' and 'user_details'.
-- You MUST use the descriptions in the 'style_elements' object (artistic_medium, lighting, color_palette, composition, etc.) to define the visual style of the new image.
-- The Style Adherence Level dictates how strictly you must follow these style rules. 0.0 is loosely inspired. 1.0 is a near-perfect stylistic replication.
-- **CRITICAL:** The final image must contain absolutely no TEXT, WORDS, OR LETTERS. Do not include any instructions that might generate text.
+- You MUST use the descriptions in the 'style_elements' object to define the visual style of the new image.
+- The Style Adherence Level dictates how strictly you must follow these style rules.
+- **CRITICAL:** Avoid mentioning specific brand names, artist names (unless provided by the user), or other AI tools. Generalize concepts (e.g., instead of "in the style of Adobe Firefly," say "in a hyper-realistic digital art style").
+- **CRITICAL:** The final image must contain absolutely no TEXT, WORDS, OR LETTERS.
 
 Your output must be a single, concise, and descriptive prompt paragraph for Imagen 4, and nothing else.
 `;
     
     let masterPromptForGemini = intent === 'AdaptRemix' ? PROMPT_TEMPLATE_ADAPT_REMIX : PROMPT_TEMPLATE_EXTRACT_STYLE;
+    
+    // --- 3. Use Sanitized Inputs ---
     masterPromptForGemini = masterPromptForGemini
-        .replace('${ANALYSIS_JSON}', analysisJsonString)
-        .replace('${USER_TOPIC}', topic)
+        .replace('${ANALYSIS_JSON}', sanitizedAnalysisString)
+        .replace('${USER_TOPIC}', sanitizedTopic)
         .replace('${USER_DETAILS}', details || 'None')
         .replace('${CONTROL_LEVEL}', normalizedControlLevel);
 
@@ -102,11 +110,11 @@ async function generateImageFromPrompt(finalImagePrompt: string): Promise<{ base
             numberOfImages: 1,
             aspectRatio: "1:1",
             includeRaiReason: true,
-            safetyFilterLevel: SafetyFilterLevel.BLOCK_ONLY_HIGH
+            safetyFilterLevel: SafetyFilterLevel.BLOCK_ONLY_HIGH,
         },
     });
 
-    // The rest of your proven response-handling logic remains the same
+    // The rest of your proven response-handling logic remains essential
     const firstResult = response?.generatedImages?.[0];
 
     if (firstResult && (firstResult as any).raiReason) {
