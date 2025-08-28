@@ -1,5 +1,6 @@
 // File: backend/src/routes/generate-image-content.ts
 import { Request, Response } from 'express';
+import { HarmCategory, HarmBlockThreshold, SafetyFilterLevel } from "@google/genai";
 import { genAI } from '../services';
 
 // Helper function to extract a JSON string from a raw model response
@@ -90,34 +91,7 @@ Your output must be a single, concise, and descriptive prompt paragraph for Imag
     return text.trim();
 }
 
-// Step 3: Generate Image (Unchanged)
-// async function generateImageFromPrompt(finalImagePrompt: string): Promise<{ base64: string, mime: string }> {
-//     console.log(`[DEBUG] Final prompt sent to Imagen 4: "${finalImagePrompt}"`);
-
-//     const response = await genAI.models.generateImages({
-//         model: IMAGEN_MODEL,
-//         prompt: finalImagePrompt,
-//         config: { numberOfImages: 1, aspectRatio: "1:1" },
-//     });
-
-//     console.debug(response?.generatedImages?.[0]?.image?.imageBytes);
-
-//     const imageBytes = response?.generatedImages?.[0]?.image?.imageBytes;
-
-//     if (!imageBytes) {
-//         console.error("Image generation failed. API response did not contain image data.", JSON.stringify(response, null, 2));
-//         throw new Error('No image returned by model. This may be due to safety filters.');
-//     }
-
-//     const base64Data = Buffer.from(imageBytes).toString('base64');
-
-//     return {
-//         base64: base64Data,
-//         mime: 'image/png',
-//     };
-// }
-
-// Step 3: Generate Image (CORRECTED)
+// Step 3: Generate Image (FINAL VERSION with Safety Settings)
 async function generateImageFromPrompt(finalImagePrompt: string): Promise<{ base64: string, mime: string }> {
     console.log(`[DEBUG] Final prompt sent to Imagen 4: "${finalImagePrompt}"`);
 
@@ -128,38 +102,31 @@ async function generateImageFromPrompt(finalImagePrompt: string): Promise<{ base
             numberOfImages: 1,
             aspectRatio: "1:1",
             includeRaiReason: true,
+            safetyFilterLevel: SafetyFilterLevel.BLOCK_NONE
         },
     });
 
+    // The rest of your proven response-handling logic remains the same
     const firstResult = response?.generatedImages?.[0];
 
-    // --- FIX START: Cast to 'any' to resolve TypeScript error ---
-
-    // 1. Explicitly check for a safety block reason first.
-    // We use '(firstResult as any)' to bypass the strict type check.
     if (firstResult && (firstResult as any).raiReason) {
-        console.error(`Image generation BLOCKED by safety filters. Reason: ${(firstResult as any).raiReason}`);
-        // Throw a structured error with a specific status code.
+        const reason = (firstResult as any).raiReason;
+        console.error(`Image generation BLOCKED by safety filters. Reason: ${reason}`);
         throw {
             status: 422,
-            message: `Image generation blocked due to safety policy: ${(firstResult as any).raiReason}`
+            message: `Image generation blocked due to safety policy: ${reason}`
         };
     }
 
-    // --- FIX END ---
-
-    // 2. Now, check if the image data itself is missing for any other reason.
     const imageBytes = firstResult?.image?.imageBytes;
-    if (!imageBytes) {
-        console.error(`Image generation failed. Full response:`, JSON.stringify(response, null, 2));
+
+    if (!imageBytes || imageBytes.length < 1000) {
+        console.error('Image generation failed or produced an invalid/tiny file. Full response:', JSON.stringify(response, null, 2));
         throw {
             status: 500,
-            message: 'Image generation failed: API response did not contain image data or a safety reason.'
+            message: 'Image generation failed: The API returned incomplete or invalid image data.'
         };
     }
-
-    console.debug('imageBytes img... ' + response?.generatedImages?.[0]?.image?.imageBytes);
-
 
     const base64Data = Buffer.from(imageBytes).toString('base64');
 
@@ -168,8 +135,6 @@ async function generateImageFromPrompt(finalImagePrompt: string): Promise<{ base
         mime: 'image/png',
     };
 }
-
-
 
 // Step 4: Generate Social Text & Headline (UPDATED)
 async function generateSocialText(topic: string, analysis: ImageAnalysis, finalImagePrompt: string) {
