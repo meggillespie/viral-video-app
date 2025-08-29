@@ -105,7 +105,7 @@ async function generateImageFromPrompt(finalImagePrompt: string): Promise<{ base
 
     const response = await genAI.models.generateImages({
         model: IMAGEN_MODEL,
-        prompt: 'a puppy in a field',
+        prompt: finalImagePrompt,
         config: {
             numberOfImages: 1,
             aspectRatio: "1:1",
@@ -134,12 +134,13 @@ async function generateImageFromPrompt(finalImagePrompt: string): Promise<{ base
             status: 500,
             message: 'Image generation failed: The API returned incomplete or invalid image data.'
         };
+    } else {
+     //console.log('FIRST RES: ' + firstResult);
+     //console.log('IMG BYTES: ' + imageBytes);
     }
 
-    const base64Data = Buffer.from(imageBytes).toString('base64');
-
     return {
-        base64: base64Data,
+        base64: imageBytes,
         mime: 'image/png',
     };
 }
@@ -259,7 +260,7 @@ export const generateImageContentRoute = async (req: Request, res: Response) => 
         return res.status(200).json({ result });
 
     } catch (error: any) {
-        console.log("--- BACKEND: CATCH BLOCK EXECUTING ---"); // <-- ADD THIS
+        console.log("--- BACKEND: CATCH BLOCK EXECUTING ---"); 
         
         console.error(`--- ERROR in /api/generate-image-content (Step: ${currentStep}) ---`);
         console.error("Error Details:", error);
