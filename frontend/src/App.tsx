@@ -1,6 +1,6 @@
 // File: frontend/src/App.tsx
 
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser, useAuth } from "@clerk/clerk-react";
 import { supabase } from './utils/supabase';
 import { VideoWorkflowManager } from './components/video/VideoWorkflowManager';
