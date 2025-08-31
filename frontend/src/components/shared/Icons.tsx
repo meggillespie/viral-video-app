@@ -1,5 +1,5 @@
 // File: frontend/src/components/shared/Icons.tsx
-import logoPng from '../../../Vyralize AI - Logo Icon-1.png';
+// import logoPng from '../../../Vyralize AI - Logo Icon-1.png';
 
 export const Spinner = () => (
     <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -9,20 +9,20 @@ export const Spinner = () => (
 );
 
 export const Logo = () => (
-    <img
-        src={logoPng}
-        alt="Vyralize AI Logo"
-        className="w-8 h-8" // This class will correctly size your image
-    />
-    // <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-    //     <defs>
-    //         <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-    //             <stop offset="0%" style={{stopColor: '#007BFF'}} />
-    //             <stop offset="100%" style={{stopColor: '#E600FF'}} />
-    //         </linearGradient>
-    //     </defs>
-    //     <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="url(#logoGradient)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
-    // </svg>
+    <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style={{stopColor: '#007BFF'}} />
+                <stop offset="100%" style={{stopColor: '#E600FF'}} />
+            </linearGradient>
+        </defs>
+        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="url(#logoGradient)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"></path>
+    </svg>
+    // <img
+    //     src={logoPng}
+    //     alt="Vyralize AI Logo"
+    //     className="w-8 h-8" // This class will correctly size your image
+    // />
 );
 
 export const CopyIcon = () => (
