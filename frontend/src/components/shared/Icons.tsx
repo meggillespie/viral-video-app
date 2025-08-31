@@ -1,7 +1,7 @@
 // File: frontend/src/components/shared/Icons.tsx
 // import React from 'react';
 import Image from 'next/image';
-import logoPng from '../../../../Vyralize AI - Logo Icon-1.png';
+import logoPng from './../../../Vyralize AI - Logo Icon-1.png';
 
 export const Spinner = () => (
     <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
