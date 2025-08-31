@@ -56,7 +56,7 @@ export const ImageGenerationOutput: React.FC<ImageGenerationOutputProps> = ({
                     <img src={result.imageUrl} alt="Generated Content" className="w-full h-auto block rounded-lg shadow-xl"/>
 
                     {textOverlayRequested && (
-                        <div className="absolute inset-0 flex items-center justify-center p-4 bg-black/50 rounded-lg">
+                        <div className="absolute inset-0 flex items-center justify-center p-4 rounded-lg">
                              <textarea
                                 className="text-white text-2xl lg:text-3xl font-bold text-center bg-transparent border-2 border-dashed border-transparent hover:border-white/30 focus:border-white/70 focus:outline-none resize-none w-full h-full p-4 transition-colors"
                                 style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.8)' }}
