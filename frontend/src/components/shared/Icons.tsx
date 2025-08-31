@@ -1,6 +1,4 @@
 // File: frontend/src/components/shared/Icons.tsx
-// import React from 'react';
-import Image from 'next/image';
 import logoPng from '../../../Vyralize AI - Logo Icon-1.png';
 
 export const Spinner = () => (
@@ -11,12 +9,10 @@ export const Spinner = () => (
 );
 
 export const Logo = () => (
-    <Image
-    src={logoPng}
-    alt="Vyralize AI Logo"
-    width={200} //  <-- The actual width of your PNG file
-    height={200} // <-- The actual height of your PNG file
-    className="w-8 h-8" // <-- This still controls the displayed size
+    <img
+        src={logoPng}
+        alt="Vyralize AI Logo"
+        className="w-8 h-8" // This class will correctly size your image
     />
     // <svg className="w-8 h-8" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
     //     <defs>
