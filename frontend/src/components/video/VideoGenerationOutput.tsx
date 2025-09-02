@@ -10,9 +10,9 @@ import remarkGfm from 'remark-gfm';
 
 // --- Configuration & Setup (from constants.ts & supabase.ts) ---
 // TODO: Replace these placeholder values with your actual environment variables.
-const SUPABASE_URL = "https://your-supabase-url.supabase.co";
-const SUPABASE_ANON_KEY = "your-supabase-anon-key";
-const BACKEND_API_URL = "https://your-backend-url.run.app";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const BACKEND_API_URL = import.meta.env.VITE_BACKEND_API_URL;
 
 // --- Supabase Client ---
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);

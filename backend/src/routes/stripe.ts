@@ -21,7 +21,7 @@ const priceIdMap = {
 
 // Credit amounts for each tier
 const creditsMap: { [key: string]: number } = {
-    [priceIdMap.starter!]: 10,
+    [priceIdMap.starter!]: 15,
     [priceIdMap.creator!]: 35,
     [priceIdMap.influencer!]: 75,
     [priceIdMap.agency!]: 160,

@@ -8,9 +8,9 @@ import { createClient } from '@supabase/supabase-js';
 
 // --- Configuration & Setup (from constants.ts & supabase.ts) ---
 // TODO: Replace these placeholder values with your actual environment variables.
-const SUPABASE_URL = "https://your-supabase-url.supabase.co";
-const SUPABASE_ANON_KEY = "your-supabase-anon-key";
-const BACKEND_API_URL = "https://your-backend-url.run.app";
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const BACKEND_API_URL = import.meta.env.VITE_BACKEND_API_URL;
 const MAX_DURATION_SECONDS = 120; // 2 minutes
 
 // --- Supabase Client ---
