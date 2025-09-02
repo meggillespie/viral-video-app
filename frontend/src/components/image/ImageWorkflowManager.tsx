@@ -6,6 +6,8 @@ import { ImageAnalysisDisplay } from './ImageAnalysisDisplay';
 import { ImageGenerationOutput } from './ImageGenerationOutput';
 import { WorkflowManagerProps } from '../../types/shared';
 import { ImageAnalysisResult, ImageGenerationResult } from '../../types/image';
+// Import PricingPage
+import { PricingPage } from '../shared/PricingPage';
 
 export const ImageWorkflowManager: React.FC<WorkflowManagerProps> = ({ 
     creditBalance, 
@@ -21,6 +23,7 @@ export const ImageWorkflowManager: React.FC<WorkflowManagerProps> = ({
     const [generatedResult, setGeneratedResult] = useState<ImageGenerationResult | null>(null);
     const [textOverlayRequested, setTextOverlayRequested] = useState(true);
 
+    // ... (handleAnalysisComplete, handleGenerationComplete, handleReset remain the same)
     const handleAnalysisComplete = useCallback((result: ImageAnalysisResult, newTopic: string, newDetails: string, preview: string) => {
         setAnalysisResult(result);
         setTopic(newTopic);
@@ -46,6 +49,16 @@ export const ImageWorkflowManager: React.FC<WorkflowManagerProps> = ({
     }, []);
 
     const renderStep = () => {
+        // FIX: Check if the user is out of credits AND trying to start a new input.
+        // If they are already in 'analysis' or 'generation', let them finish.
+        if (step === 'input' && creditBalance <= 0 && !isFetchingCredits) {
+            return (
+                <div className="p-8 bg-black/30 rounded-2xl shadow-lg border border-gray-700">
+                    <PricingPage />
+                </div>
+            );
+        }
+
         switch (step) {
             case 'input':
                 return (

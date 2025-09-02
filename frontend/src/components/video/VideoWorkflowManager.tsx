@@ -6,6 +6,8 @@ import { VideoAnalysisDisplay } from './VideoAnalysisDisplay';
 import { VideoGenerationOutput } from './VideoGenerationOutput';
 import { WorkflowManagerProps } from '../../types/shared';
 import { AnalysisResult, VideoOutputType } from '../../types/video';
+// Import PricingPage
+import { PricingPage } from '../shared/PricingPage'; 
 
 export const VideoWorkflowManager: React.FC<WorkflowManagerProps> = ({ 
     creditBalance, 
@@ -19,6 +21,7 @@ export const VideoWorkflowManager: React.FC<WorkflowManagerProps> = ({
     const [generatedContent, setGeneratedContent] = useState<string | string[] | null>(null);
     const [generatedType, setGeneratedType] = useState<VideoOutputType | null>(null);
 
+    // ... (handleAnalysisComplete, handleGenerationComplete, handleUpdateGeneration, handleReset remain the same)
     const handleAnalysisComplete = useCallback((result: AnalysisResult, newTopic: string) => {
         setAnalysisResult(result);
         setTopic(newTopic);
@@ -45,6 +48,16 @@ export const VideoWorkflowManager: React.FC<WorkflowManagerProps> = ({
     }, []);
 
     const renderStep = () => {
+        // FIX: Check if the user is out of credits AND trying to start a new input.
+        // If they are already in 'analysis' or 'generation', let them finish.
+        if (step === 'input' && creditBalance <= 0 && !isFetchingCredits) {
+            return (
+                <div className="p-8 bg-black/30 rounded-2xl shadow-lg border border-gray-700">
+                    <PricingPage />
+                </div>
+            );
+        }
+        
         switch (step) {
             case 'input':
                 return (
