@@ -23,7 +23,7 @@ Source Analysis Blueprint (Reference DNA):
 New Topic: \${USER_TOPIC}
 
 Instructions:
-1. Create a complete short-form script (approx. 35-90 seconds).
+1. Create a complete short-form script (approx. 35-80 seconds).
 2. You MUST adapt the techniques identified in the Blueprint to the new script.
 3. Hook: Replicate the style described in 'hook_analysis.technique' and 'hook_analysis.pacing'.
 4. Pacing and Structure: Mirror the 'retention_signals.narrative_structure'.
@@ -41,7 +41,7 @@ Source Analysis Blueprint:
 New Topic: \${USER_TOPIC}
 
 Instructions:
-1. Storyboard the New Topic for a short-form video (35-90 seconds), breaking it down into 5-10 distinct scenes.
+1. Storyboard the New Topic for a short-form video (35-80 seconds), breaking it down into 5-10 distinct scenes.
 2. Ensure the narrative flow matches the 'retention_signals.narrative_structure'.
 3. The visual aesthetic MUST match 'retention_signals.visual_style' and be optimized for vertical viewing.
 

@@ -1,9 +1,42 @@
-// File: frontend/src/components/image/ImageGenerationOutput.tsx
-
 import React, { useState } from 'react';
-import { CopyIcon } from '../shared/Icons';
-import { handleCopy } from '../../utils/clipboard';
-import { ImageGenerationResult } from '../../types/image';
+
+// ============================================================================
+// INLINED DEPENDENCIES (to resolve build errors)
+// ============================================================================
+
+// --- TypeScript Interface (from types/image.ts) ---
+export interface ImageGenerationResult {
+    imageUrl: string;
+    headline: string;
+    posts: {
+        linkedin: string;
+        twitter: string;
+        instagram: string;
+        facebook: string;
+    };
+}
+
+// --- Icon Component (from shared/Icons.tsx) ---
+export const CopyIcon = () => (
+    <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+    </svg>
+);
+
+// --- Clipboard Utility (from utils/clipboard.ts) ---
+export const handleCopy = (text: string, isMarkdown: boolean, setStatus: React.Dispatch<React.SetStateAction<string>>, id: string) => {
+    // A simple regex to strip markdown for plain text copy if needed, though not used for social posts.
+    const plainText = isMarkdown ? text.replace(/(\*\*|__|\*|_|#+\s?)/g, '') : text;
+    navigator.clipboard.writeText(plainText).then(() => {
+        setStatus(id);
+        setTimeout(() => setStatus(''), 2000);
+    }).catch(err => console.error('Failed to copy text: ', err));
+};
+
+
+// ============================================================================
+// MAIN COMPONENT: ImageGenerationOutput
+// ============================================================================
 
 interface ImageGenerationOutputProps {
     result: ImageGenerationResult;
@@ -49,7 +82,7 @@ export const ImageGenerationOutput: React.FC<ImageGenerationOutputProps> = ({
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <h2 className="text-2xl font-bold text-brand-light lg:col-span-2">Generation Complete</h2>
+            <h2 className="text-2xl font-bold text-white lg:col-span-2">Generation Complete</h2>
 
             <div className="space-y-6">
                 <div className="relative group">
@@ -98,3 +131,4 @@ export const ImageGenerationOutput: React.FC<ImageGenerationOutputProps> = ({
         </div>
     );
 };
+

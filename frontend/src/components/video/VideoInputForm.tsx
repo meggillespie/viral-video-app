@@ -1,10 +1,44 @@
-// File: frontend/src/components/video/VideoInputForm.tsx
-
 import React, { useState, useCallback, DragEvent } from 'react';
-import { LoadingOverlay } from '../shared/LoadingOverlay';
-import { supabase } from '../../utils/supabase';
-import { BACKEND_API_URL, MAX_DURATION_SECONDS } from '../../config/constants';
-import { AnalysisResult } from '../../types/video';
+import { useUser } from "@clerk/clerk-react";
+import { createClient } from '@supabase/supabase-js';
+
+// ============================================================================
+// INLINED DEPENDENCIES (to resolve build errors)
+// ============================================================================
+
+// --- Configuration & Setup (from constants.ts & supabase.ts) ---
+// TODO: Replace these placeholder values with your actual environment variables.
+const SUPABASE_URL = "https://your-supabase-url.supabase.co";
+const SUPABASE_ANON_KEY = "your-supabase-anon-key";
+const BACKEND_API_URL = "https://your-backend-url.run.app";
+const MAX_DURATION_SECONDS = 120; // 2 minutes
+
+// --- Supabase Client ---
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// --- TypeScript Interfaces (from types/video.ts) ---
+export interface AnalysisResult {
+    headline: string;
+    hooks: string[];
+    talking_points: string[];
+    cta: string;
+    tags: string[];
+}
+
+// --- Shared Components (from shared/LoadingOverlay.tsx) ---
+export const LoadingOverlay = ({ message, spinnerColor }: { message: string, spinnerColor: string }) => (
+    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm flex flex-col items-center justify-center z-50 rounded-2xl">
+        <svg className="animate-spin h-8 w-8 mb-4" style={{ color: spinnerColor }} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <p className="text-white text-lg font-semibold">{message}</p>
+    </div>
+);
+
+// ============================================================================
+// MAIN COMPONENT: VideoInputForm
+// ============================================================================
 
 interface VideoInputFormProps {
     onAnalysisComplete: (result: AnalysisResult, newTopic: string) => void;
@@ -21,6 +55,7 @@ export const VideoInputForm: React.FC<VideoInputFormProps> = ({
     getToken, 
     updateCredits 
 }) => {
+    const { user } = useUser();
     const [videoSource, setVideoSource] = useState('');
     const [topic, setTopic] = useState('');
     const [videoFile, setVideoFile] = useState<File | null>(null);
@@ -103,8 +138,8 @@ export const VideoInputForm: React.FC<VideoInputFormProps> = ({
         setError(''); 
         setStatusMessage('');
 
-        if (!BACKEND_API_URL) { 
-            setError("Configuration error."); 
+        if (!BACKEND_API_URL || BACKEND_API_URL.includes("your-backend-url")) { 
+            setError("Configuration error: Backend URL is not set."); 
             return; 
         }
         if (creditBalance <= 0) { 
@@ -118,6 +153,10 @@ export const VideoInputForm: React.FC<VideoInputFormProps> = ({
         if (!videoSource && !videoFile) { 
             setError("Please provide a source video."); 
             return; 
+        }
+        if (!user) {
+            setError("User not found. Please try logging in again.");
+            return;
         }
 
         setIsLoading(true);
@@ -196,11 +235,15 @@ export const VideoInputForm: React.FC<VideoInputFormProps> = ({
                 throw new Error("Received unexpected format from the analysis API.");
             }
 
-            // Credit Deduction
+            // Credit Deduction using the new DB function (RPC)
             const authToken = await getToken({ template: 'supabase' });
             if (!authToken) throw new Error("Could not get token to decrement credits.");
-            const { error: decrementError } = await supabase.functions.invoke('decrement-credits', { 
-                headers: { Authorization: `Bearer ${authToken}` } 
+            
+            supabase.auth.setAuth(authToken);
+            
+            const { error: decrementError } = await supabase.rpc('decrement_user_credits', {
+                user_id_to_update: user.id,
+                amount_to_decrement: 1.0
             });
 
             if (decrementError) {
@@ -238,7 +281,7 @@ export const VideoInputForm: React.FC<VideoInputFormProps> = ({
                     onDrop={handleDrop} 
                     onDragOver={handleDragOver} 
                     onDragLeave={handleDragLeave} 
-                    className={`bg-black/30 border-2 border-dashed ${isDragging ? 'border-[#007BFF]' : 'border-brand-gray/40'} rounded-lg p-6 text-center cursor-pointer hover:border-[#007BFF] transition-colors group relative`}
+                    className={`bg-black/30 border-2 border-dashed ${isDragging ? 'border-[#007BFF]' : 'border-gray-600'} rounded-lg p-6 text-center cursor-pointer hover:border-[#007BFF] transition-colors group relative`}
                 >
                     <input 
                         type="file" 
@@ -262,7 +305,7 @@ export const VideoInputForm: React.FC<VideoInputFormProps> = ({
                             setVideoSource(e.target.value);
                             if (videoFile) setVideoFile(null);
                         }}
-                        className="relative z-20 mt-4 w-full bg-brand-dark/50 border border-[rgba(255,255,255,0.1)] rounded-md px-4 py-2 text-brand-light placeholder-[#8A8A8E] focus:ring-2 focus:ring-[#007BFF] focus:outline-none" 
+                        className="relative z-20 mt-4 w-full bg-black/40 border border-[rgba(255,255,255,0.1)] rounded-md px-4 py-2 text-white placeholder-[#8A8A8E] focus:ring-2 focus:ring-[#007BFF] focus:outline-none" 
                         placeholder="https://youtube.com/watch?v=..." 
                         disabled={isLoading} 
                     />
@@ -276,7 +319,7 @@ export const VideoInputForm: React.FC<VideoInputFormProps> = ({
                     type="text" 
                     value={topic} 
                     onChange={e => setTopic(e.target.value)} 
-                    className="w-full bg-black/20 border border-[rgba(255,255,255,0.1)] rounded-md px-4 py-2.5 text-brand-light placeholder-[#8A8A8E] focus:ring-2 focus:ring-[#007BFF] focus:outline-none" 
+                    className="w-full bg-black/20 border border-[rgba(255,255,255,0.1)] rounded-md px-4 py-2.5 text-white placeholder-[#8A8A8E] focus:ring-2 focus:ring-[#007BFF] focus:outline-none" 
                     placeholder="e.g., 'The Future of AI Assistants'" 
                     disabled={isLoading} 
                 />
@@ -286,7 +329,7 @@ export const VideoInputForm: React.FC<VideoInputFormProps> = ({
                 <button 
                     type="submit" 
                     disabled={isLoading || isFetchingCredits} 
-                    className="w-full px-6 py-3 font-bold text-white bg-gradient-to-r from-[#007BFF] to-[#E600FF] rounded-lg hover:opacity-90 transition-all duration-300 shadow-lg hover:shadow-[0_0_20px_0_rgba(128,0,255,0.4)] focus:outline-none focus:ring-4 focus:ring-brand-blue/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center"
+                    className="w-full px-6 py-3 font-bold text-white bg-gradient-to-r from-[#007BFF] to-[#E600FF] rounded-lg hover:opacity-90 transition-all duration-300 shadow-lg hover:shadow-[0_0_20px_0_rgba(128,0,255,0.4)] focus:outline-none focus:ring-4 focus:ring-blue-500/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none flex items-center justify-center"
                 >
                     Analyze & Continue (1 Credit)
                 </button>
@@ -294,3 +337,4 @@ export const VideoInputForm: React.FC<VideoInputFormProps> = ({
         </form>
     );
 };
+

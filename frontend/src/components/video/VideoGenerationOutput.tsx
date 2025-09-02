@@ -1,12 +1,60 @@
-// File: frontend/src/components/video/VideoGenerationOutput.tsx
-
 import React, { useState } from 'react';
-import { CopyIcon, Spinner } from '../shared/Icons';
-import { MarkdownRenderer } from '../shared/MarkdownRenderer';
-import { handleCopy } from '../../utils/clipboard';
-import { supabase } from '../../utils/supabase';
-import { BACKEND_API_URL } from '../../config/constants';
-import { AnalysisResult, VideoOutputType } from '../../types/video';
+import { useUser } from "@clerk/clerk-react";
+import { createClient } from '@supabase/supabase-js';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+
+// ============================================================================
+// INLINED DEPENDENCIES (to resolve build errors)
+// ============================================================================
+
+// --- Configuration & Setup (from constants.ts & supabase.ts) ---
+// TODO: Replace these placeholder values with your actual environment variables.
+const SUPABASE_URL = "https://your-supabase-url.supabase.co";
+const SUPABASE_ANON_KEY = "your-supabase-anon-key";
+const BACKEND_API_URL = "https://your-backend-url.run.app";
+
+// --- Supabase Client ---
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// --- TypeScript Interfaces (from types/video.ts) ---
+export type VideoOutputType = 'Script' | 'AI Video Prompts';
+export interface AnalysisResult {
+    headline: string;
+    hooks: string[];
+    talking_points: string[];
+    cta: string;
+    tags: string[];
+}
+
+// --- Shared Components & Utilities (from shared/* & utils/*) ---
+export const CopyIcon = () => (
+    <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+    </svg>
+);
+export const Spinner = () => (
+    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+    </svg>
+);
+export const MarkdownRenderer = ({ text }: { text: string }) => (
+    <div className="prose prose-invert prose-sm max-w-none">
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown>
+    </div>
+);
+export const handleCopy = (text: string, isMarkdown: boolean, setStatus: React.Dispatch<React.SetStateAction<string>>, id: string) => {
+    const plainText = isMarkdown ? text.replace(/(\*\*|__|\*|_|#+\s?)/g, '') : text;
+    navigator.clipboard.writeText(plainText).then(() => {
+        setStatus(id);
+        setTimeout(() => setStatus(''), 2000);
+    }).catch(err => console.error('Failed to copy text: ', err));
+};
+
+// ============================================================================
+// MAIN COMPONENT: VideoGenerationOutput
+// ============================================================================
 
 interface VideoGenerationOutputProps {
     content: string | string[];
@@ -31,6 +79,7 @@ export const VideoGenerationOutput: React.FC<VideoGenerationOutputProps> = ({
     onUpdateGeneration, 
     creditBalance 
 }) => {
+    const { user } = useUser();
     const [copyStatus, setCopyStatus] = useState('');
     const [isCrossGenerating, setIsCrossGenerating] = useState(false);
     const [crossGenError, setCrossGenError] = useState('');
@@ -48,12 +97,21 @@ export const VideoGenerationOutput: React.FC<VideoGenerationOutputProps> = ({
     const handleCrossGenerate = async () => {
         setCrossGenError('');
         
-        const requiredCredits = 1; 
+        const requiredCredits = 0.5; 
 
         if (creditBalance < requiredCredits) {
             setCrossGenError("You do not have enough credits for this generation.");
             return;
         }
+        if (!user) {
+            setCrossGenError("User not found. Please try logging in again.");
+            return;
+        }
+        if (!BACKEND_API_URL || BACKEND_API_URL.includes("your-backend-url")) {
+            setCrossGenError("Configuration error: Backend URL is not set.");
+            return;
+        }
+
         setIsCrossGenerating(true);
 
         try {
@@ -76,12 +134,15 @@ export const VideoGenerationOutput: React.FC<VideoGenerationOutputProps> = ({
             if (!data.content) {
                 throw new Error("Received empty content from generation API.");
             }
-
+            
             const authToken = await getToken({ template: 'supabase' });
             if (!authToken) throw new Error("Could not get token to decrement credits.");
-            
-            const { error: decrementError } = await supabase.functions.invoke('decrement-credits', { 
-                headers: { Authorization: `Bearer ${authToken}` } 
+
+            supabase.auth.setAuth(authToken);
+
+            const { error: decrementError } = await supabase.rpc('decrement_user_credits', {
+                user_id_to_update: user.id,
+                amount_to_decrement: requiredCredits
             });
 
             if (decrementError) {
@@ -101,7 +162,7 @@ export const VideoGenerationOutput: React.FC<VideoGenerationOutputProps> = ({
 
     return (
         <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-brand-light">Generation Complete: {type}</h2>
+            <h2 className="text-2xl font-bold text-white">Generation Complete: {type}</h2>
 
             <div className="mt-6 bg-black/20 border border-[rgba(255,255,255,0.1)] rounded-lg p-4">
                 {isPromptArray ? (
@@ -118,7 +179,7 @@ export const VideoGenerationOutput: React.FC<VideoGenerationOutputProps> = ({
                             {content.map((prompt, index) => (
                                 <div key={index} className="bg-black/40 p-3 rounded-md border border-white/10 flex justify-between items-start gap-3">
                                     <textarea
-                                        className="w-full bg-transparent text-sm text-brand-light/80 resize-y focus:outline-none"
+                                        className="w-full bg-transparent text-sm text-gray-300/80 resize-y focus:outline-none"
                                         rows={3}
                                         value={prompt}
                                         readOnly
@@ -162,7 +223,7 @@ export const VideoGenerationOutput: React.FC<VideoGenerationOutputProps> = ({
                     className="w-full px-6 py-3 font-bold text-white bg-gray-700 rounded-lg hover:bg-gray-600 transition-all duration-300 shadow-md disabled:opacity-50 flex items-center justify-center"
                 >
                     {isCrossGenerating ? <Spinner /> : null}
-                    Generate {alternateType} (1 Credit)
+                    Generate {alternateType} (0.5 Credits)
                 </button>
 
                 <div className="w-full rounded-lg bg-gradient-to-r from-[#007BFF] to-[#E600FF] p-[2px] transition-all duration-300 hover:shadow-[0_0_15px_0_rgba(128,0,255,0.4)]">
@@ -177,3 +238,4 @@ export const VideoGenerationOutput: React.FC<VideoGenerationOutputProps> = ({
         </div>
     );
 };
+

@@ -8,11 +8,14 @@ import multer from 'multer';
 import { analyzeRoute } from './routes/analyze';
 import { analyzeImageRoute } from './routes/analyze-image';
 import { generateContentRoute } from './routes/generate-content';
+import { generateImageContentRoute } from './routes/generate-image-content';
+// import { generateImageContentRoute, generateStoryboardImageRoute } from './routes/generate-image-content';
+
 import { createSignedUrlRoute, transferToGeminiRoute } from './routes/storage';
 import { getVideoDurationRoute } from './routes/video';
 import { clerkWebhookRoute } from './routes/clerk-webhook';
-import { generateImageContentRoute } from './routes/generate-image-content';
-// import { generateImageContentRoute, generateStoryboardImageRoute } from './routes/generate-image-content';
+import { createCheckoutSessionRoute, createPortalSessionRoute, stripeWebhookRoute } from './routes/stripe';
+
 
 const app = express();
 const PORT = parseInt(process.env.PORT || '8080', 10);
@@ -39,6 +42,7 @@ app.use(cors(corsOptions));
 // We apply the raw parser specifically to this route before the global JSON parser.
 // 1. Handle the Clerk Webhook first, as it requires the raw body.
 app.post('/api/clerk-webhook', express.raw({ type: 'application/json' }), clerkWebhookRoute);
+app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), stripeWebhookRoute);
 
 // 2. Apply standard JSON parsing globally for other routes.
 app.use(express.json({ limit: '50mb' }));
@@ -65,6 +69,10 @@ app.post('/api/analyze-image', upload.single('sourceImage'), analyzeImageRoute);
 // This route now expects JSON data (analysis results, topic, intent).
 app.post('/api/generate-image-content', generateImageContentRoute);
 // app.post('/api/generate-storyboard-image', generateStoryboardImageRoute);
+
+// Add new Stripe API routes
+app.post('/api/create-checkout-session', createCheckoutSessionRoute);
+app.post('/api/create-portal-session', createPortalSessionRoute);
 
 
 app.get('/', (req, res) => {

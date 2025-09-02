@@ -6,6 +6,7 @@ import { supabase } from './utils/supabase';
 import { VideoWorkflowManager } from './components/video/VideoWorkflowManager';
 import { ImageWorkflowManager } from './components/image/ImageWorkflowManager';
 import { Logo, VideoIcon, ImageIcon } from './components/shared/Icons';
+import { PricingPage } from './components/shared/PricingPage';
 
 // ============================================================================
 // Platform Manager (Handles Tabs and Shared State)
@@ -49,11 +50,16 @@ function VyralizePlatformManager() {
 
     // Centralized credit update function passed down to workflow managers
     const updateCredits = useCallback((amount: number = 1) => {
-        setCreditBalance(prev => (prev ? prev - amount : 0));
+        setCreditBalance(prev => (prev !== null ? prev - amount : 0));
     }, []);
 
     // Determine the container size based on the active tab
     const containerWidthClass = activeTab === 'image' ? 'max-w-5xl' : 'max-w-2xl';
+    
+    // === CHANGE: Conditionally render PricingPage if out of credits
+    if (!isFetchingCredits && creditBalance !== null && creditBalance <= 0) {
+        return <PricingPage />;
+    }
 
     return (
         <div className={`w-full ${containerWidthClass} mx-auto bg-[rgba(38,38,42,0.6)] rounded-2xl border border-[rgba(255,255,255,0.1)] shadow-2xl backdrop-blur-xl overflow-hidden transition-all duration-500`}>
