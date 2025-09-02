@@ -1,20 +1,5 @@
 import React, { useState } from 'react';
-
-// ============================================================================
-// INLINED DEPENDENCIES (to resolve build errors)
-// ============================================================================
-
-// --- TypeScript Interface (from types/image.ts) ---
-export interface ImageGenerationResult {
-    imageUrl: string;
-    headline: string;
-    posts: {
-        linkedin: string;
-        twitter: string;
-        instagram: string;
-        facebook: string;
-    };
-}
+import { ImageGenerationResult } from '../../types/image';
 
 // --- Icon Component (from shared/Icons.tsx) ---
 export const CopyIcon = () => (
@@ -51,7 +36,7 @@ export const ImageGenerationOutput: React.FC<ImageGenerationOutputProps> = ({
 }) => {
     const [copyStatus, setCopyStatus] = useState('');
     const [editableHeadline, setEditableHeadline] = useState(
-        result.headline || (textOverlayRequested ? "Your Headline Here" : "")
+        result.headline ?? (textOverlayRequested ? "Your Headline Here" : "")
     );
 
     const renderPost = (platform: string, content: string) => (

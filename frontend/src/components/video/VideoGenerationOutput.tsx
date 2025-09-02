@@ -3,6 +3,7 @@ import { useUser } from "@clerk/clerk-react";
 import { createClient } from '@supabase/supabase-js';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { AnalysisResult, VideoOutputType } from '../../types/video';
 
 // ============================================================================
 // INLINED DEPENDENCIES (to resolve build errors)
@@ -16,16 +17,6 @@ const BACKEND_API_URL = import.meta.env.VITE_BACKEND_API_URL;
 
 // --- Supabase Client ---
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-// --- TypeScript Interfaces (from types/video.ts) ---
-export type VideoOutputType = 'Script' | 'AI Video Prompts';
-export interface AnalysisResult {
-    headline: string;
-    hooks: string[];
-    talking_points: string[];
-    cta: string;
-    tags: string[];
-}
 
 // --- Shared Components & Utilities (from shared/* & utils/*) ---
 export const CopyIcon = () => (
@@ -138,9 +129,15 @@ export const VideoGenerationOutput: React.FC<VideoGenerationOutputProps> = ({
             const authToken = await getToken({ template: 'supabase' });
             if (!authToken) throw new Error("Could not get token to decrement credits.");
 
-            supabase.auth.setAuth(authToken);
+            // Create a temporary, authorized client instance (Supabase v2 standard)
+            const authorizedSupabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+                global: {
+                    headers: { Authorization: `Bearer ${authToken}` },
+                },
+            });
 
-            const { error: decrementError } = await supabase.rpc('decrement_user_credits', {
+            // Use the authorized client for the RPC call
+            const { error: decrementError } = await authorizedSupabase.rpc('decrement_user_credits', {
                 user_id_to_update: user.id,
                 amount_to_decrement: requiredCredits
             });

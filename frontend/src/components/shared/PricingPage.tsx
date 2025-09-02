@@ -1,6 +1,6 @@
 // File: frontend/src/components/shared/PricingPage.tsx
-import React, { useState } from 'react';
-import { useUser, useAuth } from "@clerk/clerk-react";
+import { useState } from 'react';
+import { useUser } from "@clerk/clerk-react";
 import { loadStripe } from '@stripe/stripe-js';
 import { BACKEND_API_URL } from '../../config/constants';
 
