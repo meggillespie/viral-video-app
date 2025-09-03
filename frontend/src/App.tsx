@@ -6,7 +6,7 @@ import { supabase } from './utils/supabase';
 import { VideoWorkflowManager } from './components/video/VideoWorkflowManager';
 import { ImageWorkflowManager } from './components/image/ImageWorkflowManager';
 import { Logo, VideoIcon, ImageIcon } from './components/shared/Icons';
-import { PricingPage } from './components/shared/PricingPage';
+// import { PricingPage } from './components/shared/PricingPage';
 
 function VyralizePlatformManager() {
     const { getToken } = useAuth();
