@@ -7,7 +7,7 @@ import { VideoWorkflowManager } from './components/video/VideoWorkflowManager';
 import { ImageWorkflowManager } from './components/image/ImageWorkflowManager';
 import { Logo, VideoIcon, ImageIcon } from './components/shared/Icons';
 // PricingPage is imported but no longer used for the global check.
-import { PricingPage } from './components/shared/PricingPage';
+// import { PricingPage } from './components/shared/PricingPage';
 
 // ============================================================================
 // Platform Manager (Handles Tabs and Shared State)
