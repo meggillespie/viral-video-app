@@ -6,7 +6,7 @@ import { supabase } from './utils/supabase';
 import { VideoWorkflowManager } from './components/video/VideoWorkflowManager';
 import { ImageWorkflowManager } from './components/image/ImageWorkflowManager';
 import { Logo, VideoIcon, ImageIcon } from './components/shared/Icons';
-import { PricingPage } from './components/shared/PricingPage';
+// import { PricingPage } from './components/shared/PricingPage';
 
 // ============================================================================
 // Platform Manager (Handles Tabs and Shared State)
@@ -68,7 +68,7 @@ function VyralizePlatformManager() {
 
     // NEW: If the user has zero credits, we now render the PricingPage inside the main view.
     // This allows them to see their last generated content while also being prompted to upgrade.
-    const showPricingInsteadOfInputs = !isFetchingCredits && creditBalance !== null && creditBalance <= 0;
+    // const showPricingInsteadOfInputs = !isFetchingCredits && creditBalance !== null && creditBalance <= 0;
 
 
     return (
