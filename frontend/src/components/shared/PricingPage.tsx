@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useUser } from "@clerk/clerk-react";
 import { loadStripe } from '@stripe/stripe-js';
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE!);
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
 const BACKEND_API_URL = import.meta.env.VITE_BACKEND_API_URL;
 
 const pricingTiers = [
@@ -68,12 +68,12 @@ export const PricingPage = () => {
                     <strong className="font-bold">Error: </strong><span>{error}</span>
                 </div>
             )}
-            {/* FIX: This one line makes the grid responsive to fix the compression.
-              - `grid-cols-1`: Default to 1 column (mobile).
-              - `md:grid-cols-2`: Becomes a 2x2 grid on medium screens (this will apply in the Video Lab).
-              - `lg:grid-cols-4`: Becomes a 1x4 grid on large screens (this will apply in the Image Lab).
+
+            {/* FIX: Replaced responsive breakpoints with a fluid, container-aware grid layout.
+                This tells each column to be at least 200px wide and to automatically fit
+                as many columns as possible in the available space before wrapping.
             */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid gap-6 [grid-template-columns:repeat(auto-fit,minmax(200px,1fr))]">
                 {pricingTiers.map(tier => (
                     <div key={tier.name} className="bg-black/30 p-6 rounded-lg border border-white/10 flex flex-col">
                         <h3 className="text-xl font-semibold text-white">{tier.name}</h3>
