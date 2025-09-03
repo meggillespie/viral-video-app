@@ -11,60 +11,56 @@ export function TermsOfServicePage() {
                     <p className="mt-2 text-sm text-gray-400">Last Updated: September 3, 2025</p>
                 </div>
 
-                <div className="space-y-8 text-gray-300 prose prose-invert prose-lg">
+                <div className="space-y-6 text-gray-300 prose prose-invert max-w-none">
                     <p>Welcome to Vyralize AI! These Terms of Service ("Terms") govern your use of the Vyralize AI web application and any related services (collectively, the "Service"), provided by AI Plexus, LLC ("we," "us," or "our").</p>
 
-                    <section>
-                        <h2>1. Acceptance of Terms</h2>
-                        <p>By creating an account, or by accessing or using our Service, you agree to be bound by these Terms. If you do not agree to these Terms, you may not use the Service.</p>
-                    </section>
+                    <h2>1. Acceptance of Terms</h2>
+                    <p>By creating an account, or by accessing or using our Service, you agree to be bound by these Terms. If you do not agree to these Terms, you may not use the Service.</p>
 
-                    <section>
-                        <h2>2. Description of Service</h2>
-                        <p>Vyralize AI is an AI-powered platform that enables users to analyze viral social media content to generate new, inspired content, including but not limited to video scripts and images.</p>
-                    </section>
+                    <h2>2. Description of Service</h2>
+                    <p>Vyralize AI is an AI-powered platform that enables users to analyze viral social media content to generate new, inspired content, including but not limited to video scripts and images.</p>
                     
-                    <section>
-                        <h2>3. User Accounts and Responsibilities</h2>
-                        <p>You are responsible for safeguarding your account information. You agree to provide accurate and complete information when you create an account and to keep this information up to date.</p>
-                    </section>
+                    <h2>3. User Accounts and Responsibilities</h2>
+                    <p>You are responsible for safeguarding your account information. You agree to provide accurate and complete information when you create an account and to keep this information up to date.</p>
 
-                    <section>
-                        <h2>4. User Content and Responsibility</h2>
-                        <p>You are solely responsible for any text, images, videos, or other materials you upload or provide to the Service ("Input Content"). By providing Input Content, you represent and warrant that you own or have all necessary rights, licenses, and permissions to use it and to grant us the rights to process it as required to provide the Service. You agree that your Input Content will not violate any applicable laws or infringe on any third-party rights.</p>
-                    </section>
+                    <h2>4. User Content and Responsibility</h2>
+                    <p>You are solely responsible for any text, images, videos, or other materials you upload or provide to the Service ("Input Content"). By providing Input Content, you represent and warrant that you own or have all necessary rights, licenses, and permissions to use it and to grant us the rights to process it as required to provide the Service. You agree that your Input Content will not violate any applicable laws or infringe on any third-party rights.</p>
 
-                    <section>
-                        <h2>5. Acceptable Use Policy</h2>
-                        <p>You agree not to use the Service to create, upload, or share any content that:</p>
-                        <ul>
-                            <li>Infringes on any third party's intellectual property rights, including copyright and trademark.</li>
-                            <li>Is graphically violent, obscene, or sexually explicit.</li>
-                            <li>Constitutes hate speech, harassment, or is defamatory or discriminatory.</li>
-                            <li>Is illegal or promotes illegal activities.</li>
-                            <li>Contains viruses, malware, or other harmful code.</li>
-                        </ul>
-                        <p>We reserve the right to suspend or terminate accounts that violate this policy.</p>
-                    </section>
+                    <h2>5. Acceptable Use Policy</h2>
+                    <p>You agree not to use the Service to create, upload, or share any content that:</p>
+                    <ul>
+                        <li>Infringes on any third party's intellectual property rights, including copyright and trademark.</li>
+                        <li>Is graphically violent, obscene, or sexually explicit.</li>
+                        <li>Constitutes hate speech, harassment, or is defamatory or discriminatory.</li>
+                        <li>Is illegal or promotes illegal activities.</li>
+                        <li>Contains viruses, malware, or other harmful code.</li>
+                    </ul>
+                    <p>We reserve the right to suspend or terminate accounts that violate this policy.</p>
 
-                    <section>
-                        <h2>6. Ownership of Generated Content</h2>
-                        <p>You retain any ownership rights you have in your Input Content. Subject to your compliance with these Terms, you own the content generated by the Service at your direction ("Generated Content"). You grant AI Plexus, LLC a worldwide, non-exclusive, royalty-free license to use, reproduce, and display your Input and Generated Content solely for the purposes of operating, maintaining, and improving the Service.</p>
-                    </section>
+                    <h2>6. Ownership of Generated Content</h2>
+                    <p>You retain any ownership rights you have in your Input Content. Subject to your compliance with these Terms, you own the content generated by the Service at your direction ("Generated Content"). You grant AI Plexus, LLC a worldwide, non-exclusive, royalty-free license to use, reproduce, and display your Input and Generated Content solely for the purposes of operating, maintaining, and improving the Service.</p>
                     
-                    <section>
-                        <h2>7. Credits, Payments, and Refunds</h2>
-                        <p>Use of the Service requires the purchase of credits. One credit is consumed for specific actions as indicated within the user interface.</p>
-                        <p><strong>AI Imperfections:</strong> You acknowledge that artificial intelligence is a developing field and can produce errors, inaccuracies, or unexpected outputs. The Service is intended to streamline and assist in the creative process, not to produce perfect, final-work outputs.</p>
-                        <p><strong>Refund Policy:</strong> All credit purchases are final. We do not offer refunds for common or minor AI generation errors. However, in cases of a complete technical failure or a verifiably egregious generation error, we may, at our sole discretion, issue a credit refund on a case-by-case basis.</p>
-                        <p><strong>Refund Request Process:</strong> To request a refund, you must email contact@aiplexus.io with the subject line: "Refund Request". Your email must include a screenshot of the error or failure, a detailed description of the issue, and the email address associated with your Vyralize AI account.</p>
-                    </section>
+                    <h2>7. Credits, Payments, and Refunds</h2>
+                    <p>Use of the Service requires the purchase of credits. One credit is consumed for specific actions as indicated within the user interface.</p>
+                    <p><strong>AI Imperfections:</strong> You acknowledge that artificial intelligence is a developing field and can produce errors, inaccuracies, or unexpected outputs. The Service is intended to streamline and assist in the creative process, not to produce perfect, final-work outputs.</p>
+                    <p><strong>Refund Policy:</strong> All credit purchases are final. We do not offer refunds for common or minor AI generation errors. However, in cases of a complete technical failure or a verifiably egregious generation error, we may, at our sole discretion, issue a credit refund on a case-by-case basis.</p>
+                    <p><strong>Refund Request Process:</strong> To request a refund, you must email contact@aiplexus.io with the subject line: "Refund Request". Your email must include a screenshot of the error or failure, a detailed description of the issue, and the email address associated with your Vyralize AI account.</p>
                     
-                    <section>
-                        <h2>8. Disclaimers and Limitation of Liability</h2>
-                        <p>THE SERVICE IS PROVIDED "AS-IS" WITHOUT ANY WARRANTIES OF ANY KIND. WE DO NOT GUARANTEE THAT THE SERVICE WILL BE UNINTERRUPTED OR ERROR-FREE. IN NO EVENT SHALL AI PLEXUS, LLC BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION WITH YOUR USE OF THE SERVICE. OUR TOTAL LIABILITY TO YOU SHALL NOT EXCEED THE AMOUNT YOU HAVE PAID TO US IN THE SIX (6) MONTHS PRIOR TO THE CLAIM.</p>
-                    </section>
+                    <h2>8. Disclaimers and Limitation of Liability</h2>
+                    <p>THE SERVICE IS PROVIDED "AS-IS" WITHOUT ANY WARRANTIES OF ANY KIND. WE DO NOT GUARANTEE THAT THE SERVICE WILL BE UNINTERRUPTED OR ERROR-FREE. IN NO EVENT SHALL AI PLEXUS, LLC BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES ARISING OUT OF OR IN CONNECTION WITH YOUR USE OF THE SERVICE. OUR TOTAL LIABILITY TO YOU SHALL NOT EXCEED THE AMOUNT YOU HAVE PAID TO US IN THE SIX (6) MONTHS PRIOR TO THE CLAIM.</p>
 
-                    <section>
-                        <h2>9. Indemnification</h2>
-                        <p>You agree to indemnify and hold harmless AI Plexus, LLC and its employees from any claims, damages, or expenses (including attorneys' fees) arising from your use of the Service, your violation of these Terms, or your infringement of
+                    <h2>9. Indemnification</h2>
+                    <p>You agree to indemnify and hold harmless AI Plexus, LLC and its employees from any claims, damages, or expenses (including attorneys' fees) arising from your use of the Service, your violation of these Terms, or your infringement of any third-party rights.</p>
+
+                    <h2>10. Changes to Terms</h2>
+                    <p>We may modify these Terms at any time. We will notify you of any changes by posting the new Terms on this page. Your continued use of the Service after such changes constitutes your acceptance of the new Terms.</p>
+                </div>
+                 <div className="text-center mt-12">
+                    <a href="/" className="px-6 py-2 bg-gradient-to-r from-[#007BFF] to-[#E600FF] text-white font-semibold rounded-lg hover:opacity-90 transition-opacity no-underline">
+                        Back to App
+                    </a>
+                </div>
+            </div>
+        </div>
+    );
+}
