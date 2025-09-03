@@ -3,9 +3,8 @@ import Stripe from 'stripe';
 import { supabaseAdmin } from '../services';
 
 // Initialize Stripe.
-// FIX: The `apiVersion` is removed to resolve a TypeScript build error caused by
-// overly strict type definitions in the Stripe library. The library will default
-// to the API version set in your Stripe account dashboard, which is the preferred behavior.
+// The `apiVersion` is removed to resolve a TypeScript build error. The library will default
+// to the API version set in your Stripe account dashboard.
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
@@ -19,18 +18,36 @@ const priceIdMap = {
     agency: process.env.STRIPE_AGENCY_PRICE_ID,
 };
 
+// Create a set of valid Price IDs for validation (filter out any undefined values)
+const validPriceIds = new Set(Object.values(priceIdMap).filter(id => id));
+
 // Credit amounts for each tier
-const creditsMap: { [key: string]: number } = {
-    [priceIdMap.starter!]: 15,
-    [priceIdMap.creator!]: 35,
-    [priceIdMap.influencer!]: 75,
-    [priceIdMap.agency!]: 160,
-};
+// FIX: Initialize safely. The previous implementation could crash if environment variables were missing.
+const creditsMap: { [key: string]: number } = {};
+
+if (priceIdMap.starter) creditsMap[priceIdMap.starter] = 15;
+if (priceIdMap.creator) creditsMap[priceIdMap.creator] = 35;
+if (priceIdMap.influencer) creditsMap[priceIdMap.influencer] = 75;
+if (priceIdMap.agency) creditsMap[priceIdMap.agency] = 160;
+
 
 // ---- 1. Create Checkout Session for Subscriptions ----
 export const createCheckoutSessionRoute = async (req: Request, res: Response) => {
     // In a real app, you would get userId from a verified Clerk JWT
     const { userId, email, priceId } = req.body; 
+
+    // FIX (Issue 2): Validate the incoming priceId.
+    // Check if it's missing, the literal string "undefined" (a common frontend error when configuration is missing), 
+    // or if it doesn't match known valid Price IDs.
+    if (!priceId || priceId === 'undefined' || !validPriceIds.has(priceId)) {
+        console.error(`Invalid or missing priceId provided: ${priceId}`);
+        // Return a 400 error instead of crashing with a 500 error.
+        return res.status(400).json({ error: 'Invalid subscription plan selected. Please ensure the frontend configuration (environment variables) is correct.' });
+    }
+
+    if (!userId || !email) {
+        return res.status(400).json({ error: 'Missing userId or email.' });
+    }
 
     try {
         const { data: profile, error } = await supabaseAdmin
@@ -40,6 +57,7 @@ export const createCheckoutSessionRoute = async (req: Request, res: Response) =>
             .single();
 
         if (error || !profile) {
+            console.error("User profile not found for userId:", userId, error);
             return res.status(404).json({ error: 'User profile not found.' });
         }
 
@@ -55,6 +73,7 @@ export const createCheckoutSessionRoute = async (req: Request, res: Response) =>
             payment_method_types: ['card', 'link'],
             mode: 'subscription',
             customer: customerId,
+            // priceId is now validated
             line_items: [{ price: priceId, quantity: 1 }],
             success_url: `${clientUrl}?session_id={CHECKOUT_SESSION_ID}`,
             cancel_url: clientUrl,
@@ -63,6 +82,7 @@ export const createCheckoutSessionRoute = async (req: Request, res: Response) =>
 
         res.json({ sessionId: session.id });
     } catch (error: any) {
+        console.error("Error creating checkout session:", error);
         res.status(500).json({ error: error.message });
     }
 };
@@ -92,9 +112,16 @@ export const stripeWebhookRoute = async (req: Request, res: Response) => {
     const sig = req.headers['stripe-signature']!;
     let event: Stripe.Event;
 
+    if (!webhookSecret) {
+        console.error("Stripe webhook secret is not configured.");
+        return res.status(500).send("Server configuration error.");
+    }
+
     try {
+        // Ensure req.body is the raw buffer for signature verification
         event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
     } catch (err: any) {
+        console.error(`Webhook signature verification failed: ${err.message}`);
         return res.status(400).send(`Webhook Error: ${err.message}`);
     }
 
@@ -129,10 +156,30 @@ export const stripeWebhookRoute = async (req: Request, res: Response) => {
                     : invoice.customer?.id;
 
                  if (customerId) {
-                    await supabaseAdmin.rpc('add_user_credits', {
-                        user_id_to_update: customerId,
-                        amount_to_add: creditsToAdd
-                    });
+                    // PROACTIVE FIX: The original code passed the Stripe Customer ID (customerId) to the RPC.
+                    // The RPC 'add_user_credits' expects the actual User ID (UUID).
+                    // We must look up the User ID associated with this customerId first.
+                    const { data: profile, error } = await supabaseAdmin
+                        .from('profiles')
+                        .select('id')
+                        .eq('stripe_customer_id', customerId)
+                        .single();
+
+                    if (error || !profile) {
+                        console.error(`Could not find user associated with Stripe Customer ID: ${customerId}`, error);
+                        // Return 500 so Stripe retries the webhook
+                        return res.status(500).send("Error finding user for credit update.");
+                    } else {
+                        const { error: rpcError } = await supabaseAdmin.rpc('add_user_credits', {
+                            user_id_to_update: profile.id, // Use the actual user ID (UUID)
+                            amount_to_add: creditsToAdd
+                        });
+
+                        if (rpcError) {
+                            console.error("Failed to add credits via RPC:", rpcError);
+                            return res.status(500).send("Error executing credit update RPC.");
+                        }
+                    }
                  }
              }
              break;
@@ -147,6 +194,5 @@ export const stripeWebhookRoute = async (req: Request, res: Response) => {
         }
     }
 
-    res.status(200).send();
+    res.status(200).send({ received: true });
 };
-

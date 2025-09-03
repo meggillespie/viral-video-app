@@ -6,6 +6,7 @@ import { supabase } from './utils/supabase';
 import { VideoWorkflowManager } from './components/video/VideoWorkflowManager';
 import { ImageWorkflowManager } from './components/image/ImageWorkflowManager';
 import { Logo, VideoIcon, ImageIcon } from './components/shared/Icons';
+// PricingPage is imported but no longer used for the global check.
 import { PricingPage } from './components/shared/PricingPage';
 
 // ============================================================================
@@ -35,7 +36,13 @@ function VyralizePlatformManager() {
                         headers: { Authorization: `Bearer ${token}` } 
                     });
                     if (funcError) throw funcError;
-                    setCreditBalance(data.credit_balance);
+
+                    // Robustness check
+                    if (data && typeof data.credit_balance === 'number') {
+                        setCreditBalance(data.credit_balance);
+                    } else {
+                        setCreditBalance(0);
+                    }
                 } catch (err) { 
                     console.error("Error loading user data:", err); 
                     setCreditBalance(0); 
@@ -50,16 +57,22 @@ function VyralizePlatformManager() {
 
     // Centralized credit update function passed down to workflow managers
     const updateCredits = useCallback((amount: number = 1) => {
-        setCreditBalance(prev => (prev !== null ? prev - amount : 0));
+        // Ensure balance doesn't visually drop below 0
+        setCreditBalance(prev => (prev !== null ? Math.max(0, prev - amount) : 0));
     }, []);
 
     // Determine the container size based on the active tab
     const containerWidthClass = activeTab === 'image' ? 'max-w-5xl' : 'max-w-2xl';
     
-    // === CHANGE: Conditionally render PricingPage if out of credits
+    /*
+    // === FIX (Issue 1): Removed the global PricingPage redirect. 
+    // This check was interrupting the user's workflow immediately after they spent
+    // their last credit. The WorkflowManagers now handle this correctly on the 'input' step.
+    
     if (!isFetchingCredits && creditBalance !== null && creditBalance <= 0) {
         return <PricingPage />;
     }
+    */
 
     return (
         <div className={`w-full ${containerWidthClass} mx-auto bg-[rgba(38,38,42,0.6)] rounded-2xl border border-[rgba(255,255,255,0.1)] shadow-2xl backdrop-blur-xl overflow-hidden transition-all duration-500`}>
@@ -106,21 +119,33 @@ function VyralizePlatformManager() {
                 </div>
 
                 {/* Tab Content */}
-                {activeTab === 'video' && (
-                    <VideoWorkflowManager
-                        creditBalance={creditBalance ?? 0}
-                        isFetchingCredits={isFetchingCredits}
-                        updateCredits={updateCredits}
-                        getToken={getToken}
-                    />
-                )}
-                {activeTab === 'image' && (
-                    <ImageWorkflowManager
-                        creditBalance={creditBalance ?? 0}
-                        isFetchingCredits={isFetchingCredits}
-                        updateCredits={updateCredits}
-                        getToken={getToken}
-                    />
+                {/* Added a loading state while fetching credits to prevent UI flash */}
+                {isFetchingCredits ? (
+                     <div className="flex justify-center items-center h-64">
+                        <svg className="animate-spin h-8 w-8 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </div>
+                ) : (
+                    <>
+                        {activeTab === 'video' && (
+                            <VideoWorkflowManager
+                                creditBalance={creditBalance ?? 0}
+                                isFetchingCredits={isFetchingCredits}
+                                updateCredits={updateCredits}
+                                getToken={getToken}
+                            />
+                        )}
+                        {activeTab === 'image' && (
+                            <ImageWorkflowManager
+                                creditBalance={creditBalance ?? 0}
+                                isFetchingCredits={isFetchingCredits}
+                                updateCredits={updateCredits}
+                                getToken={getToken}
+                            />
+                        )}
+                    </>
                 )}
 
             </div>
