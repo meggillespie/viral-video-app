@@ -1,6 +1,6 @@
 // File: frontend/src/pages/PrivacyPolicyPage.tsx
 
-import React from 'react';
+// import React from 'react';
 
 export function PrivacyPolicyPage() {
     return (

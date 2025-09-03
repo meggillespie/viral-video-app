@@ -1,6 +1,6 @@
 // File: frontend/src/pages/TermsOfServicePage.tsx
 
-import React from 'react';
+// import React from 'react';
 
 export function TermsOfServicePage() {
     return (
