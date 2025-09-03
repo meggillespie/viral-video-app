@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useUser } from "@clerk/clerk-react";
 import { loadStripe } from '@stripe/stripe-js';
 
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE!);
 const BACKEND_API_URL = import.meta.env.VITE_BACKEND_API_URL;
 
 const pricingTiers = [
@@ -14,28 +14,21 @@ const pricingTiers = [
 ];
 
 export const PricingPage = () => {
-    // FIX: Destructure `isLoaded` to know when the user object is available.
     const { user, isLoaded } = useUser();
     const [loading, setLoading] = useState<string | null>(null);
-    // FIX: Add state to display errors to the user.
     const [error, setError] = useState<string | null>(null);
 
     const handleSubscribe = async (priceId: string | undefined) => {
         setError(null);
-
-        // FIX: Add a check for missing priceId to catch environment variable issues.
         if (!priceId || priceId === 'undefined') {
             setError("This plan is not configured correctly. Please check frontend environment variables.");
             return;
         }
-
         if (!user) {
             setError("User not found. Please try refreshing the page.");
             return;
         }
-
         setLoading(priceId);
-
         try {
             const response = await fetch(`${BACKEND_API_URL}/api/create-checkout-session`, {
                 method: 'POST',
@@ -46,18 +39,14 @@ export const PricingPage = () => {
                     priceId: priceId,
                 }),
             });
-            
             if (!response.ok) {
                 const errData = await response.json();
                 throw new Error(errData.error || 'Failed to create checkout session.');
             }
-
             const { sessionId } = await response.json();
             const stripe = await stripePromise;
             if (!stripe) throw new Error("Stripe.js failed to load.");
-            
             await stripe.redirectToCheckout({ sessionId });
-
         } catch (err: any) {
             console.error("Subscription failed:", err);
             setError(err.message);
@@ -66,27 +55,21 @@ export const PricingPage = () => {
         }
     };
 
-    // FIX: Show a loading state until the Clerk user session is loaded.
     if (!isLoaded) {
-        return (
-             <div className="text-center p-8">
-                <p className="text-lg text-gray-400">Loading plans...</p>
-            </div>
-        );
+        return <div className="text-center p-8"><p className="text-lg text-gray-400">Loading plans...</p></div>;
     }
 
     return (
-        <div className="text-center">
+        <div className="text-center p-8 bg-[rgba(38,38,42,0.6)] rounded-2xl border border-[rgba(255,255,255,0.1)] shadow-2xl backdrop-blur-xl">
             <h2 className="text-3xl font-bold mb-2 text-white">You're out of credits!</h2>
             <p className="text-lg text-gray-400 mb-8">Choose a plan to continue creating.</p>
-            
             {error && (
                 <div className="mb-6 bg-red-500/20 border border-red-500/30 text-red-300 px-4 py-3 rounded-lg text-sm" role="alert">
                     <strong className="font-bold">Error: </strong><span>{error}</span>
                 </div>
             )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* FIX: Grid is now responsive. It will be 2x2 on small-mid screens and 4x1 on large screens. */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {pricingTiers.map(tier => (
                     <div key={tier.name} className="bg-black/30 p-6 rounded-lg border border-white/10 flex flex-col">
                         <h3 className="text-xl font-semibold text-white">{tier.name}</h3>
@@ -94,7 +77,6 @@ export const PricingPage = () => {
                         <p className="text-lg text-gray-300 mb-6">{tier.credits} credits</p>
                         <button 
                             onClick={() => handleSubscribe(tier.priceId)}
-                            // FIX: Disable button if user isn't loaded or another action is in progress.
                             disabled={!isLoaded || loading !== null}
                             className="mt-auto px-6 py-2 bg-gradient-to-r from-[#007BFF] to-[#E600FF] text-white font-semibold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                         >

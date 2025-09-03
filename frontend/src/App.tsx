@@ -8,10 +8,6 @@ import { ImageWorkflowManager } from './components/image/ImageWorkflowManager';
 import { Logo, VideoIcon, ImageIcon } from './components/shared/Icons';
 import { PricingPage } from './components/shared/PricingPage';
 
-// ============================================================================
-// Platform Manager (Handles Tabs and Shared State)
-// ============================================================================
-
 function VyralizePlatformManager() {
     const { getToken } = useAuth();
     const { user } = useUser();
@@ -45,92 +41,80 @@ function VyralizePlatformManager() {
     const updateCredits = useCallback((amount: number = 1) => {
         setCreditBalance(prev => (prev !== null ? prev - amount : 0));
     }, []);
-
-    // FIX: Determine if the pricing page should be shown.
-    const showPricingPage = !isFetchingCredits && creditBalance !== null && creditBalance <= 0;
-
-    // FIX: Conditionally set the container width. If the pricing page is shown,
-    // use a wider layout (`max-w-4xl`) to prevent compression. Otherwise, use
-    // the width appropriate for the active lab.
-    const containerWidthClass = showPricingPage
-        ? 'max-w-4xl' 
-        : (activeTab === 'image' ? 'max-w-5xl' : 'max-w-2xl');
+    
+    // FIX: The container width is now determined ONLY by the active tab.
+    // The premature redirect logic has been completely removed.
+    const containerWidthClass = activeTab === 'image' ? 'max-w-5xl' : 'max-w-2xl';
 
     return (
         <div className={`w-full ${containerWidthClass} mx-auto bg-[rgba(38,38,42,0.6)] rounded-2xl border border-[rgba(255,255,255,0.1)] shadow-2xl backdrop-blur-xl overflow-hidden transition-all duration-500`}>
-            {/* If out of credits, show the pricing page directly */}
-            {showPricingPage ? (
-                <div className="p-6 sm:p-8">
-                    <PricingPage />
-                </div>
-            ) : (
-                <div className="p-6 sm:p-8">
-                    <div className="flex items-center justify-between mb-8">
-                        <div className="flex items-center">
-                            <div className="flex items-center gap-3">
-                                <Logo />
-                                <h1 className="text-2xl font-bold bg-gradient-to-r from-[#007BFF] to-[#E600FF] bg-clip-text text-transparent">Vyralize AI</h1>
-                            </div>
-                             <p className="hidden sm:block text-xs text-gray-400 border-l border-gray-600 ml-3 pl-3">Create What Captivates</p>
+            <div className="p-6 sm:p-8">
+                <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center">
+                        <div className="flex items-center gap-3">
+                            <Logo />
+                            <h1 className="text-2xl font-bold bg-gradient-to-r from-[#007BFF] to-[#E600FF] bg-clip-text text-transparent">Vyralize AI</h1>
                         </div>
-                        <div className="text-sm text-[#8A8A8E] bg-black/20 border border-[rgba(255,255,255,0.1)] px-3 py-1 rounded-full">
-                            {isFetchingCredits ? '...' : creditBalance ?? 0} Credits
-                        </div>
+                            <p className="hidden sm:block text-xs text-gray-400 border-l border-gray-600 ml-3 pl-3">Create What Captivates</p>
                     </div>
-
-                    <div className="mb-8 border-b border-gray-700">
-                        <nav className="-mb-px flex space-x-6" aria-label="Tabs">
-                            <button
-                                onClick={() => setActiveTab('video')}
-                                className={`flex items-center whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-                                    activeTab === 'video'
-                                        ? 'border-[#007BFF] text-[#007BFF]'
-                                        : 'border-transparent text-gray-400 hover:text-gray-200 hover:border-gray-600'
-                                }`}
-                            >
-                                <VideoIcon />
-                                Video Lab
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('image')}
-                                className={`flex items-center whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
-                                    activeTab === 'image'
-                                        ? 'border-[#E600FF] text-[#E600FF]'
-                                        : 'border-transparent text-gray-400 hover:text-gray-200 hover:border-gray-600'
-                                }`}
-                            >
-                                <ImageIcon />
-                                Image Lab
-                            </button>
-                        </nav>
+                    <div className="text-sm text-[#8A8A8E] bg-black/20 border border-[rgba(255,255,255,0.1)] px-3 py-1 rounded-full">
+                        {isFetchingCredits ? '...' : creditBalance ?? 0} Credits
                     </div>
-
-                    {activeTab === 'video' && (
-                        <VideoWorkflowManager
-                            creditBalance={creditBalance ?? 0}
-                            isFetchingCredits={isFetchingCredits}
-                            updateCredits={updateCredits}
-                            getToken={getToken}
-                        />
-                    )}
-                    {activeTab === 'image' && (
-                        <ImageWorkflowManager
-                            creditBalance={creditBalance ?? 0}
-                            isFetchingCredits={isFetchingCredits}
-                            updateCredits={updateCredits}
-                            getToken={getToken}
-                        />
-                    )}
                 </div>
-            )}
+
+                <div className="mb-8 border-b border-gray-700">
+                    <nav className="-mb-px flex space-x-6" aria-label="Tabs">
+                        <button
+                            onClick={() => setActiveTab('video')}
+                            className={`flex items-center whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                                activeTab === 'video'
+                                    ? 'border-[#007BFF] text-[#007BFF]'
+                                    : 'border-transparent text-gray-400 hover:text-gray-200 hover:border-gray-600'
+                            }`}
+                        >
+                            <VideoIcon />
+                            Video Lab
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('image')}
+                            className={`flex items-center whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                                activeTab === 'image'
+                                    ? 'border-[#E600FF] text-[#E600FF]'
+                                    : 'border-transparent text-gray-400 hover:text-gray-200 hover:border-gray-600'
+                            }`}
+                        >
+                            <ImageIcon />
+                            Image Lab
+                        </button>
+                    </nav>
+                </div>
+
+                {/* The correct workflow manager is always rendered. It will be responsible
+                    for showing the pricing page when a user with 0 credits tries to start a new action. */}
+                {activeTab === 'video' && (
+                    <VideoWorkflowManager
+                        creditBalance={creditBalance ?? 0}
+                        isFetchingCredits={isFetchingCredits}
+                        updateCredits={updateCredits}
+                        getToken={getToken}
+                    />
+                )}
+                {activeTab === 'image' && (
+                    <ImageWorkflowManager
+                        creditBalance={creditBalance ?? 0}
+                        isFetchingCredits={isFetchingCredits}
+                        updateCredits={updateCredits}
+                        getToken={getToken}
+                    />
+                )}
+            </div>
         </div>
     );
 }
 
-// ============================================================================
-// Main App Component (No changes needed here)
-// ============================================================================
+// Main App Component remains the same
 export default function App() {
+    /* ... */
     return (
         <>
             <div className="bg-[#111115] min-h-screen font-sans text-[#F5F5F7] relative">
