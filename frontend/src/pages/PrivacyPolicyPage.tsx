@@ -1,7 +1,5 @@
 // File: frontend/src/pages/PrivacyPolicyPage.tsx
 
-// import React from 'react';
-
 export function PrivacyPolicyPage() {
     return (
         <div className="bg-[#111115] min-h-screen font-sans text-[#F5F5F7] py-16 px-4 sm:px-6 lg:px-8">
