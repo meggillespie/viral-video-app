@@ -68,8 +68,12 @@ export const PricingPage = () => {
                     <strong className="font-bold">Error: </strong><span>{error}</span>
                 </div>
             )}
-            {/* FIX: Grid is now responsive. It will be 2x2 on small-mid screens and 4x1 on large screens. */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* FIX: This one line makes the grid responsive to fix the compression.
+              - `grid-cols-1`: Default to 1 column (mobile).
+              - `md:grid-cols-2`: Becomes a 2x2 grid on medium screens (this will apply in the Video Lab).
+              - `lg:grid-cols-4`: Becomes a 1x4 grid on large screens (this will apply in the Image Lab).
+            */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {pricingTiers.map(tier => (
                     <div key={tier.name} className="bg-black/30 p-6 rounded-lg border border-white/10 flex flex-col">
                         <h3 className="text-xl font-semibold text-white">{tier.name}</h3>
