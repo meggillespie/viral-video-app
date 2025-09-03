@@ -143,6 +143,14 @@ export default function App() {
                         </div>
                     </SignedOut>
                 </main>
+                <footer className="absolute bottom-0 w-full text-center p-4 text-xs text-gray-500 z-10">
+                    <p>
+                        © 2025 AI Plexus, LLC. All Rights Reserved. | 
+                        <a href="mailto:contact@aiplexus.io" className="px-2 hover:text-gray-300 transition-colors">contact@aiplexus.io</a> | 
+                        <a href="/terms-of-service" className="px-2 hover:text-gray-300 transition-colors">Terms of Service</a> | 
+                        <a href="/privacy-policy" className="px-2 hover:text-gray-300 transition-colors">Privacy Policy</a>
+                    </p>
+                </footer>
             </div>
         </>
     );
