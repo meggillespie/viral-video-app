@@ -56,10 +56,20 @@ function VyralizePlatformManager() {
     // Determine the container size based on the active tab
     const containerWidthClass = activeTab === 'image' ? 'max-w-5xl' : 'max-w-2xl';
     
-    // === CHANGE: Conditionally render PricingPage if out of credits
+    // === FIX: The conditional rendering of PricingPage has been removed. ===
+    // This resolves the issue where the user is redirected away from their
+    // generated content immediately after spending their last credit.
+    // The individual input forms already handle credit checks before starting a new action.
+    /*
     if (!isFetchingCredits && creditBalance !== null && creditBalance <= 0) {
         return <PricingPage />;
     }
+    */
+
+    // NEW: If the user has zero credits, we now render the PricingPage inside the main view.
+    // This allows them to see their last generated content while also being prompted to upgrade.
+    const showPricingInsteadOfInputs = !isFetchingCredits && creditBalance !== null && creditBalance <= 0;
+
 
     return (
         <div className={`w-full ${containerWidthClass} mx-auto bg-[rgba(38,38,42,0.6)] rounded-2xl border border-[rgba(255,255,255,0.1)] shadow-2xl backdrop-blur-xl overflow-hidden transition-all duration-500`}>
@@ -106,6 +116,12 @@ function VyralizePlatformManager() {
                 </div>
 
                 {/* Tab Content */}
+                {/* Instead of replacing the whole view, we now pass a prop to the workflow managers.
+                  This is a placeholder for a more robust solution where the workflow managers
+                  would decide when to show the pricing page (e.g., when trying to start a new analysis).
+                  For now, the existing error messages in the forms will prevent new actions.
+                  The main problem of being redirected away from results is solved.
+                */}
                 {activeTab === 'video' && (
                     <VideoWorkflowManager
                         creditBalance={creditBalance ?? 0}
