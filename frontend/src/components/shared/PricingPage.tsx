@@ -38,14 +38,13 @@ export const PricingPage = () => {
             if (user) {
                 setIsSubscriptionLoading(true);
                 try {
-                    // This query will now succeed because the 'subscription_plan_id' column exists.
                     const { data: profile, error: profileError } = await supabase
                         .from('profiles')
                         .select('subscription_status, subscription_plan_id')
                         .eq('id', user.id)
                         .single();
 
-                    if (profileError && profileError.code !== 'PGRST116') { // PGRST116 means no row was found, which is not an error here.
+                    if (profileError && profileError.code !== 'PGRST116') { 
                         throw profileError;
                     }
                     
@@ -84,7 +83,7 @@ export const PricingPage = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId: user.id, email: user.primaryEmailAddress?.emailAddress, priceId }),
             });
-            if (!response.ok) throw new Error((await response.json()).error);
+            if (!response.ok) throw new Error((await response.json()).error || "An unknown error occurred.");
             const { sessionId } = await response.json();
             const stripe = await stripePromise;
             await stripe?.redirectToCheckout({ sessionId });
@@ -100,13 +99,12 @@ export const PricingPage = () => {
         if (!user) return;
         setLoading('top-up');
         try {
-            // This API call now has a corresponding route in the backend.
             const response = await fetch(`${BACKEND_API_URL}/api/create-top-up-checkout-session`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId: user.id }),
             });
-            if (!response.ok) throw new Error((await response.json()).error);
+            if (!response.ok) throw new Error((await response.json()).error || "An unknown error occurred.");
             const { sessionId } = await response.json();
             const stripe = await stripePromise;
             await stripe?.redirectToCheckout({ sessionId });
@@ -127,7 +125,7 @@ export const PricingPage = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId: user.id }),
             });
-            if (!response.ok) throw new Error((await response.json()).error);
+            if (!response.ok) throw new Error((await response.json()).error || "An unknown error occurred.");
             const { url } = await response.json();
             window.location.href = url;
         } catch (err: any) {
@@ -141,12 +139,10 @@ export const PricingPage = () => {
         return <div className="text-center p-8"><p className="text-lg text-gray-400">Loading plans...</p></div>;
     }
 
-    const isSubscribed = subscription?.status === 'active' && subscription?.planId;
-    // This logic correctly finds the user's plan based on the planId (Stripe Price ID)
+    const isSubscribed = subscription && subscription.status === 'active' && subscription.planId;
     const currentPlan = isSubscribed ? pricingTiers.find(t => t.priceId === subscription.planId) : null;
     const topUpInfo = currentPlan ? topUpOptions[currentPlan.name] : null;
 
-    // Display for subscribed users
     if (isSubscribed && currentPlan) {
         return (
             <div className="text-center p-8 bg-[rgba(38,38,42,0.6)] rounded-2xl border border-[rgba(255,255,255,0.1)] shadow-2xl backdrop-blur-xl">
@@ -176,7 +172,6 @@ export const PricingPage = () => {
         );
     }
 
-    // Display for non-subscribed users
     return (
         <div className="text-center p-8 bg-[rgba(38,38,42,0.6)] rounded-2xl border border-[rgba(255,255,255,0.1)] shadow-2xl backdrop-blur-xl">
             <h2 className="text-3xl font-bold mb-2 text-white">You're out of credits!</h2>
@@ -197,3 +192,4 @@ export const PricingPage = () => {
         </div>
     );
 };
+

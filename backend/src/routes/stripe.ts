@@ -11,6 +11,7 @@ const clientUrl = 'https://viral-video-app-ai-plexus.vercel.app'; // Your fronte
 // ---- Price ID Maps ----
 
 // Subscription Price IDs from .env
+// FIX: Removed the 'VITE_' prefix for backend environment variables.
 const priceIdMap: { [key: string]: string | undefined } = {
     starter: process.env.STRIPE_STARTER_PRICE_ID,
     creator: process.env.STRIPE_CREATOR_PRICE_ID,
@@ -19,6 +20,7 @@ const priceIdMap: { [key: string]: string | undefined } = {
 };
 
 // Top-Up Price IDs for the "5 Credit Top-Up Package" from .env
+// FIX: Removed the 'VITE_' prefix for backend environment variables.
 const topUpPriceIdMap: { [key: string]: string | undefined } = {
     starter: process.env.STRIPE_STARTER_TOPUP_PRICE_ID,
     creator: process.env.STRIPE_CREATOR_TOPUP_PRICE_ID,
@@ -27,7 +29,7 @@ const topUpPriceIdMap: { [key: string]: string | undefined } = {
 };
 
 // Create a set of valid Subscription Price IDs for easy validation
-const validSubscriptionPriceIds = new Set(Object.values(priceIdMap).filter(id => id));
+const validSubscriptionPriceIds = new Set(Object.values(priceIdMap).filter(id => !!id));
 
 // Map subscription price IDs to the number of credits they provide
 const subscriptionCreditsMap: { [key: string]: number } = {};
@@ -44,7 +46,7 @@ export const createCheckoutSessionRoute = async (req: Request, res: Response) =>
     const { userId, email, priceId } = req.body; 
 
     if (!priceId || !validSubscriptionPriceIds.has(priceId)) {
-        console.error(`Invalid or missing priceId provided: ${priceId}`);
+        console.error(`Invalid or missing priceId provided: ${priceId}. Valid IDs: ${Array.from(validSubscriptionPriceIds).join(', ')}`);
         return res.status(400).json({ error: 'Invalid subscription plan selected.' });
     }
 
@@ -234,3 +236,4 @@ export const stripeWebhookRoute = async (req: Request, res: Response) => {
 
     res.status(200).send({ received: true });
 };
+
