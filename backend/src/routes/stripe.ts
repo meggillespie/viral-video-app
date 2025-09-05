@@ -2,54 +2,54 @@ import { Request, Response } from 'express';
 import Stripe from 'stripe';
 import { supabaseAdmin } from '../services';
 
-// Initialize Stripe.
+// Initialize Stripe. Ensure the secret key is non-null with '!'
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
-const clientUrl = 'https://viral-video-app-ai-plexus.vercel.app'; // Frontend URL
+const clientUrl = 'https://viral-video-app-ai-plexus.vercel.app'; // Your frontend URL
 
 // ---- Price ID Maps ----
 
 // Subscription Price IDs from .env
 const priceIdMap: { [key: string]: string | undefined } = {
-    starter: process.env.STRIPE_STARTER_PRICE_ID,
-    creator: process.env.STRIPE_CREATOR_PRICE_ID,
-    influencer: process.env.STRIPE_INFLUENCER_PRICE_ID,
-    agency: process.env.STRIPE_AGENCY_PRICE_ID,
+    starter: process.env.VITE_STRIPE_STARTER_PRICE_ID,
+    creator: process.env.VITE_STRIPE_CREATOR_PRICE_ID,
+    influencer: process.env.VITE_STRIPE_INFLUENCER_PRICE_ID,
+    agency: process.env.VITE_STRIPE_AGENCY_PRICE_ID,
 };
 
-// NEW: Top-Up Price IDs for the "5 Credit Top-Up Package" from .env
+// Top-Up Price IDs for the "5 Credit Top-Up Package" from .env
 const topUpPriceIdMap: { [key: string]: string | undefined } = {
-    starter: process.env.STRIPE_STARTER_TOPUP_PRICE_ID, // $7.50
-    creator: process.env.STRIPE_CREATOR_TOPUP_PRICE_ID, // $6.25
-    influencer: process.env.STRIPE_INFLUENCER_TOPUP_PRICE_ID, // $5.00
-    agency: process.env.STRIPE_AGENCY_TOPUP_PRICE_ID,    // $4.50
+    starter: process.env.VITE_STRIPE_STARTER_TOPUP_PRICE_ID,
+    creator: process.env.VITE_STRIPE_CREATOR_TOPUP_PRICE_ID,
+    influencer: process.env.VITE_STRIPE_INFLUENCER_TOPUP_PRICE_ID,
+    agency: process.env.VITE_STRIPE_AGENCY_TOPUP_PRICE_ID,
 };
 
-// Create a set of valid Subscription Price IDs for validation
+// Create a set of valid Subscription Price IDs for easy validation
 const validSubscriptionPriceIds = new Set(Object.values(priceIdMap).filter(id => id));
 
-// Credit amounts for subscription tiers
+// Map subscription price IDs to the number of credits they provide
 const subscriptionCreditsMap: { [key: string]: number } = {};
 if (priceIdMap.starter) subscriptionCreditsMap[priceIdMap.starter] = 15;
 if (priceIdMap.creator) subscriptionCreditsMap[priceIdMap.creator] = 35;
 if (priceIdMap.influencer) subscriptionCreditsMap[priceIdMap.influencer] = 75;
 if (priceIdMap.agency) subscriptionCreditsMap[priceIdMap.agency] = 160;
 
-// NEW: Credit amount for all top-ups
+// All top-ups grant a fixed number of credits
 const TOP_UP_CREDIT_AMOUNT = 5;
 
 // ---- 1. Create Checkout Session for Subscriptions ----
 export const createCheckoutSessionRoute = async (req: Request, res: Response) => {
     const { userId, email, priceId } = req.body; 
 
-    if (!priceId || priceId === 'undefined' || !validSubscriptionPriceIds.has(priceId)) {
+    if (!priceId || !validSubscriptionPriceIds.has(priceId)) {
         console.error(`Invalid or missing priceId provided: ${priceId}`);
-        return res.status(400).json({ error: 'Invalid subscription plan selected. Please ensure frontend configuration is correct.' });
+        return res.status(400).json({ error: 'Invalid subscription plan selected.' });
     }
 
     if (!userId || !email) {
-        return res.status(400).json({ error: 'Missing userId or email.' });
+        return res.status(400).json({ error: 'Missing user identification.' });
     }
 
     try {
@@ -74,17 +74,17 @@ export const createCheckoutSessionRoute = async (req: Request, res: Response) =>
 
         res.json({ sessionId: session.id });
     } catch (error: any) {
-        console.error("Error creating checkout session:", error);
-        res.status(500).json({ error: error.message });
+        console.error("Error creating subscription checkout session:", error);
+        res.status(500).json({ error: "Failed to create checkout session." });
     }
 };
 
-// ---- NEW: 2. Create Checkout Session for Credit Top-Ups ----
+// ---- 2. Create Checkout Session for Credit Top-Ups ----
 export const createTopUpCheckoutSessionRoute = async (req: Request, res: Response) => {
     const { userId } = req.body;
 
     if (!userId) {
-        return res.status(400).json({ error: 'Missing userId.' });
+        return res.status(400).json({ error: 'Missing user identification.' });
     }
 
     try {
@@ -101,15 +101,16 @@ export const createTopUpCheckoutSessionRoute = async (req: Request, res: Respons
         const { stripe_customer_id: customerId, stripe_subscription_id: subscriptionId } = profile;
 
         if (!customerId || !subscriptionId) {
-            return res.status(400).json({ error: 'User is not subscribed or missing Stripe customer ID.' });
+            return res.status(400).json({ error: 'User is not subscribed or is missing Stripe data.' });
         }
 
+        // Retrieve the subscription to determine the current plan
         const subscription = await stripe.subscriptions.retrieve(subscriptionId);
         const currentPriceId = subscription.items.data[0]?.price.id;
         const currentTier = Object.keys(priceIdMap).find(tier => priceIdMap[tier] === currentPriceId);
 
         if (!currentTier) {
-            return res.status(500).json({ error: `Subscription plan (${currentPriceId}) is not recognized.` });
+            return res.status(500).json({ error: `Current subscription plan (${currentPriceId}) is not recognized.` });
         }
 
         const topUpPriceId = topUpPriceIdMap[currentTier];
@@ -120,27 +121,27 @@ export const createTopUpCheckoutSessionRoute = async (req: Request, res: Respons
         
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card', 'link'],
-            mode: 'payment',
+            mode: 'payment', // One-time payment
             customer: customerId,
             line_items: [{ price: topUpPriceId, quantity: 1 }],
             success_url: `${clientUrl}?session_id={CHECKOUT_SESSION_ID}`,
             cancel_url: clientUrl,
-            metadata: { userId, purchaseType: 'top-up' },
+            metadata: { userId, purchaseType: 'top-up' }, // Metadata to identify purchase type in webhook
         });
 
         res.json({ sessionId: session.id });
     } catch (error: any) {
         console.error("Error creating top-up checkout session:", error);
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: "Failed to create top-up session." });
     }
 };
 
-// ---- 3. Create Customer Portal Session (For Cancellation/Management) ----
+// ---- 3. Create Customer Portal Session ----
 export const createPortalSessionRoute = async (req: Request, res: Response) => {
     const { userId } = req.body;
     try {
-        const { data: profile, error } = await supabaseAdmin.from('profiles').select('stripe_customer_id').eq('id', userId).single();
-        if (error || !profile || !profile.stripe_customer_id) {
+        const { data: profile } = await supabaseAdmin.from('profiles').select('stripe_customer_id').eq('id', userId).single();
+        if (!profile?.stripe_customer_id) {
             return res.status(404).json({ error: 'Stripe customer not found for this user.' });
         }
         
@@ -151,7 +152,7 @@ export const createPortalSessionRoute = async (req: Request, res: Response) => {
 
         res.json({ url: portalSession.url });
     } catch (error: any) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({ error: "Failed to create customer portal session." });
     }
 };
 
@@ -163,15 +164,20 @@ export const stripeWebhookRoute = async (req: Request, res: Response) => {
     try {
         event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
     } catch (err: any) {
+        console.error(`Webhook signature verification failed: ${err.message}`);
         return res.status(400).send(`Webhook Error: ${err.message}`);
     }
 
+    // Handle the event
     switch (event.type) {
         case 'checkout.session.completed': {
             const session = event.data.object as Stripe.Checkout.Session;
             const userId = session.metadata?.userId;
 
-            if (session.mode === 'subscription' && userId) {
+            if (!userId) break;
+
+            // Handle successful subscription creation
+            if (session.mode === 'subscription') {
                 const subscriptionId = session.subscription as string;
                 const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 1 });
                 const planId = lineItems.data[0]?.price?.id;
@@ -180,27 +186,24 @@ export const stripeWebhookRoute = async (req: Request, res: Response) => {
                     await supabaseAdmin.from('profiles').update({
                         stripe_subscription_id: subscriptionId,
                         subscription_status: 'active',
-                        subscription_plan_id: planId, // Store the plan ID
+                        subscription_plan_id: planId, // Save the plan's priceId
                     }).eq('id', userId);
                 }
-            } else if (session.mode === 'payment' && session.metadata?.purchaseType === 'top-up' && userId) {
+            } 
+            // Handle successful one-time top-up purchase
+            else if (session.mode === 'payment' && session.metadata?.purchaseType === 'top-up') {
                 const { error } = await supabaseAdmin.rpc('add_user_credits', {
                     user_id_to_update: userId,
                     amount_to_add: TOP_UP_CREDIT_AMOUNT
                 });
-                if (error) {
-                    console.error("Webhook: Failed to add top-up credits:", error);
-                    return res.status(500).send("Webhook: Error adding top-up credits.");
-                }
+                if (error) console.error("Webhook: Failed to add top-up credits:", error);
             }
             break;
         }
         case 'invoice.payment_succeeded': {
             const invoice = event.data.object as Stripe.Invoice;
+            // Handle recurring subscription payment (credit refill)
             if (invoice.billing_reason === 'subscription_cycle') {
-                // FIX: Cast to 'any' to bypass a known strict typing issue with Stripe's SDK.
-                // The 'price' object is present on subscription cycle line items, but the generic
-                // InvoiceLineItem type doesn't include it.
                 const priceId = (invoice.lines.data[0] as any)?.price?.id;
                 const customerId = invoice.customer as string;
 
@@ -213,17 +216,14 @@ export const stripeWebhookRoute = async (req: Request, res: Response) => {
                             user_id_to_update: profile.id,
                             amount_to_add: creditsToAdd
                         });
-                        if (error) {
-                            console.error("Webhook: Failed to add renewal credits:", error);
-                            return res.status(500).send("Webhook: Error adding renewal credits.");
-                        }
+                        if (error) console.error("Webhook: Failed to add renewal credits:", error);
                     }
                 }
             }
             break;
         }
         case 'customer.subscription.updated':
-        case 'customer.subscription.deleted': {
+        case 'customer.subscription.deleted': { // Handles cancellations
             const subscription = event.data.object as Stripe.Subscription;
             await supabaseAdmin.from('profiles').update({
                 subscription_status: subscription.status,
@@ -234,4 +234,3 @@ export const stripeWebhookRoute = async (req: Request, res: Response) => {
 
     res.status(200).send({ received: true });
 };
-

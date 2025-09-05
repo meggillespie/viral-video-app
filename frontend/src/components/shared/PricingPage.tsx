@@ -38,13 +38,14 @@ export const PricingPage = () => {
             if (user) {
                 setIsSubscriptionLoading(true);
                 try {
+                    // This query will now succeed because the 'subscription_plan_id' column exists.
                     const { data: profile, error: profileError } = await supabase
                         .from('profiles')
                         .select('subscription_status, subscription_plan_id')
                         .eq('id', user.id)
                         .single();
 
-                    if (profileError && profileError.code !== 'PGRST116') {
+                    if (profileError && profileError.code !== 'PGRST116') { // PGRST116 means no row was found, which is not an error here.
                         throw profileError;
                     }
                     
@@ -52,8 +53,9 @@ export const PricingPage = () => {
                         status: profile?.subscription_status || null, 
                         planId: profile?.subscription_plan_id || null 
                     });
-                } catch (err) {
+                } catch (err: any) {
                     console.error("Error fetching subscription status:", err);
+                    setError("Could not load your subscription details.");
                     setSubscription({ status: null, planId: null });
                 } finally {
                     setIsSubscriptionLoading(false);
@@ -98,6 +100,7 @@ export const PricingPage = () => {
         if (!user) return;
         setLoading('top-up');
         try {
+            // This API call now has a corresponding route in the backend.
             const response = await fetch(`${BACKEND_API_URL}/api/create-top-up-checkout-session`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -107,7 +110,7 @@ export const PricingPage = () => {
             const { sessionId } = await response.json();
             const stripe = await stripePromise;
             await stripe?.redirectToCheckout({ sessionId });
-        } catch (err: any) {
+        } catch (err: any)         {
             setError(err.message);
         } finally {
             setLoading(null);
@@ -139,9 +142,11 @@ export const PricingPage = () => {
     }
 
     const isSubscribed = subscription?.status === 'active' && subscription?.planId;
+    // This logic correctly finds the user's plan based on the planId (Stripe Price ID)
     const currentPlan = isSubscribed ? pricingTiers.find(t => t.priceId === subscription.planId) : null;
     const topUpInfo = currentPlan ? topUpOptions[currentPlan.name] : null;
 
+    // Display for subscribed users
     if (isSubscribed && currentPlan) {
         return (
             <div className="text-center p-8 bg-[rgba(38,38,42,0.6)] rounded-2xl border border-[rgba(255,255,255,0.1)] shadow-2xl backdrop-blur-xl">
@@ -171,6 +176,7 @@ export const PricingPage = () => {
         );
     }
 
+    // Display for non-subscribed users
     return (
         <div className="text-center p-8 bg-[rgba(38,38,42,0.6)] rounded-2xl border border-[rgba(255,255,255,0.1)] shadow-2xl backdrop-blur-xl">
             <h2 className="text-3xl font-bold mb-2 text-white">You're out of credits!</h2>
@@ -191,4 +197,3 @@ export const PricingPage = () => {
         </div>
     );
 };
-
