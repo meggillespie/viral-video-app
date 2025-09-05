@@ -3,7 +3,7 @@ import { useUser } from "@clerk/clerk-react";
 import { loadStripe } from '@stripe/stripe-js';
 import { supabase } from '../../utils/supabase'; 
 
-// --- Client Initialization ---
+// --- Client Initialization ---//
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
 const BACKEND_API_URL = import.meta.env.VITE_BACKEND_API_URL;
 
