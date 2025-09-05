@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useUser } from "@clerk/clerk-react";
 import { loadStripe } from '@stripe/stripe-js';
-import { createClient } from '../../utils/supabase'; // Adjust this path if needed
+import { supabase } from '../../utils/supabase'; 
 
 // --- Environment Variables ---
 // Switched to process.env to be compatible with more build environments.
@@ -23,7 +23,6 @@ const VITE_SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY!;
 
 // --- Client Initialization ---
 const stripePromise = loadStripe(VITE_STRIPE_PUBLISHABLE_KEY);
-const supabase = createClient(VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY);
 
 const pricingTiers = [
     { name: 'Starter', price: '$19.99', credits: '15', priceId: VITE_STRIPE_STARTER_PRICE_ID },
@@ -209,3 +208,4 @@ export const PricingPage = () => {
         </div>
     );
 };
+
