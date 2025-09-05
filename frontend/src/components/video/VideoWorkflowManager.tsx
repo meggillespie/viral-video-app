@@ -6,7 +6,6 @@ import { VideoAnalysisDisplay } from './VideoAnalysisDisplay';
 import { VideoGenerationOutput } from './VideoGenerationOutput';
 import { WorkflowManagerProps } from '../../types/shared';
 import { AnalysisResult, VideoOutputType } from '../../types/video';
-// Import PricingPage
 import { PricingPage } from '../shared/PricingPage'; 
 
 export const VideoWorkflowManager: React.FC<WorkflowManagerProps> = ({ 

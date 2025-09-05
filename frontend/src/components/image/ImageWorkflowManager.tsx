@@ -6,7 +6,6 @@ import { ImageAnalysisDisplay } from './ImageAnalysisDisplay';
 import { ImageGenerationOutput } from './ImageGenerationOutput';
 import { WorkflowManagerProps } from '../../types/shared';
 import { ImageAnalysisResult, ImageGenerationResult } from '../../types/image';
-// Import PricingPage
 import { PricingPage } from '../shared/PricingPage';
 
 export const ImageWorkflowManager: React.FC<WorkflowManagerProps> = ({ 
