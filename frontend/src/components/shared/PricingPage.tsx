@@ -3,39 +3,23 @@ import { useUser } from "@clerk/clerk-react";
 import { loadStripe } from '@stripe/stripe-js';
 import { supabase } from '../../utils/supabase'; 
 
-// --- Environment Variables ---
-// Switched to process.env to be compatible with more build environments.
-// Make sure your build tool (e.g., Vite) is configured to replace these variables.
-const VITE_STRIPE_PUBLISHABLE_KEY = process.env.VITE_STRIPE_PUBLISHABLE_KEY!;
-const BACKEND_API_URL = process.env.VITE_BACKEND_API_URL;
-
-const VITE_STRIPE_STARTER_PRICE_ID = process.env.VITE_STRIPE_STARTER_PRICE_ID;
-const VITE_STRIPE_CREATOR_PRICE_ID = process.env.VITE_STRIPE_CREATOR_PRICE_ID;
-const VITE_STRIPE_INFLUENCER_PRICE_ID = process.env.VITE_STRIPE_INFLUENCER_PRICE_ID;
-const VITE_STRIPE_AGENCY_PRICE_ID = process.env.VITE_STRIPE_AGENCY_PRICE_ID;
-const VITE_STRIPE_STARTER_TOPUP_PRICE_ID = process.env.VITE_STRIPE_STARTER_TOPUP_PRICE_ID;
-const VITE_STRIPE_CREATOR_TOPUP_PRICE_ID = process.env.VITE_STRIPE_CREATOR_TOPUP_PRICE_ID;
-const VITE_STRIPE_INFLUENCER_TOPUP_PRICE_ID = process.env.VITE_STRIPE_INFLUENCER_TOPUP_PRICE_ID;
-const VITE_STRIPE_AGENCY_TOPUP_PRICE_ID = process.env.VITE_STRIPE_AGENCY_TOPUP_PRICE_ID;
-
-// const VITE_SUPABASE_URL = process.env.VITE_SUPABASE_URL!;
-// const VITE_SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY!;
-
 // --- Client Initialization ---
-const stripePromise = loadStripe(VITE_STRIPE_PUBLISHABLE_KEY);
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
+const BACKEND_API_URL = import.meta.env.VITE_BACKEND_API_URL;
+
 
 const pricingTiers = [
-    { name: 'Starter', price: '$19.99', credits: '15', priceId: VITE_STRIPE_STARTER_PRICE_ID },
-    { name: 'Creator', price: '$39.99', credits: '35', priceId: VITE_STRIPE_CREATOR_PRICE_ID },
-    { name: 'Influencer', price: '$79.99', credits: '75', priceId: VITE_STRIPE_INFLUENCER_PRICE_ID },
-    { name: 'Agency', price: '$139.99', credits: '160', priceId: VITE_STRIPE_AGENCY_PRICE_ID },
+    { name: 'Starter', price: '$19.99', credits: '15', priceId: import.meta.env.VITE_STRIPE_STARTER_PRICE_ID },
+    { name: 'Creator', price: '$39.99', credits: '35', priceId: import.meta.env.VITE_STRIPE_CREATOR_PRICE_ID },
+    { name: 'Influencer', price: '$79.99', credits: '75', priceId: import.meta.env.VITE_STRIPE_INFLUENCER_PRICE_ID },
+    { name: 'Agency', price: '$139.99', credits: '160', priceId: import.meta.env.VITE_STRIPE_AGENCY_PRICE_ID },
 ];
 
 const topUpOptions: { [key: string]: { price: string; priceId: string | undefined } } = {
-    'Starter': { price: '$7.50', priceId: VITE_STRIPE_STARTER_TOPUP_PRICE_ID },
-    'Creator': { price: '$6.25', priceId: VITE_STRIPE_CREATOR_TOPUP_PRICE_ID },
-    'Influencer': { price: '$5.00', priceId: VITE_STRIPE_INFLUENCER_TOPUP_PRICE_ID },
-    'Agency': { price: '$4.50', priceId: VITE_STRIPE_AGENCY_TOPUP_PRICE_ID },
+    'Starter': { price: '$7.50', priceId: import.meta.VITE_STRIPE_STARTER_TOPUP_PRICE_ID },
+    'Creator': { price: '$6.25', priceId: import.meta.VITE_STRIPE_CREATOR_TOPUP_PRICE_ID },
+    'Influencer': { price: '$5.00', priceId: import.meta.VITE_STRIPE_INFLUENCER_TOPUP_PRICE_ID },
+    'Agency': { price: '$4.50', priceId: import.meta.VITE_STRIPE_AGENCY_TOPUP_PRICE_ID },
 };
 
 interface SubscriptionInfo {
