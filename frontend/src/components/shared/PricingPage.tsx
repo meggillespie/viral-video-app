@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { useUser } from "https://cdn.skypack.dev/@clerk/clerk-react";
-import { loadStripe } from 'https://cdn.skypack.dev/@stripe/stripe-js';
-import { createClient } from 'https://cdn.skypack.dev/@supabase/supabase-js';
+import { useState, useEffect } from 'react';
+import { useUser } from "@clerk/clerk-react";
+import { loadStripe } from '@stripe/stripe-js';
+import { createClient } from '../../utils/supabase'; // Adjust this path if needed
 
 // --- Environment Variables ---
 // Switched to process.env to be compatible with more build environments.
@@ -209,4 +209,3 @@ export const PricingPage = () => {
         </div>
     );
 };
-
