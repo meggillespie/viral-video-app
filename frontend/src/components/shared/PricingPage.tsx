@@ -9,6 +9,7 @@ const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE!);
 const BACKEND_API_URL = import.meta.env.VITE_BACKEND_API_URL || '';
 
 const pricingTiers = [
+    { name: 'Test', price: '$0.50', credits: '3', priceId: import.meta.env.VITE_STRIPE_TEST_PRICE_ID },
     { name: 'Starter', price: '$19.99', credits: '15', priceId: import.meta.env.VITE_STRIPE_STARTER_PRICE_ID },
     { name: 'Creator', price: '$39.99', credits: '35', priceId: import.meta.env.VITE_STRIPE_CREATOR_PRICE_ID },
     { name: 'Influencer', price: '$79.99', credits: '75', priceId: import.meta.env.VITE_STRIPE_INFLUENCER_PRICE_ID },
@@ -16,6 +17,7 @@ const pricingTiers = [
 ];
 
 const topUpOptions: { [key: string]: { price: string; priceId: string | undefined } } = {
+    'Test': { price: '$0.75', priceId: import.meta.env.VITE_STRIPE_TEST_TOPUP_PRICE_ID },
     'Starter': { price: '$7.50', priceId: import.meta.env.VITE_STRIPE_STARTER_TOPUP_PRICE_ID },
     'Creator': { price: '$6.25', priceId: import.meta.env.VITE_STRIPE_CREATOR_TOPUP_PRICE_ID },
     'Influencer': { price: '$5.00', priceId: import.meta.env.VITE_STRIPE_INFLUENCER_TOPUP_PRICE_ID },

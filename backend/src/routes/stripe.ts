@@ -12,6 +12,7 @@ const clientUrl = 'https://viral-video-app-ai-plexus.vercel.app'; // Your fronte
 
 // Subscription Price IDs from .env
 const priceIdMap: { [key: string]: string | undefined } = {
+    test: process.env.STRIPE_TEST_PRICE_ID,
     starter: process.env.STRIPE_STARTER_PRICE_ID,
     creator: process.env.STRIPE_CREATOR_PRICE_ID,
     influencer: process.env.STRIPE_INFLUENCER_PRICE_ID,
@@ -20,6 +21,7 @@ const priceIdMap: { [key: string]: string | undefined } = {
 
 // Top-Up Price IDs for the "5 Credit Top-Up Package" from .env
 const topUpPriceIdMap: { [key: string]: string | undefined } = {
+    test: process.env.STRIPE_TEST_TOPUP_PRICE_ID,
     starter: process.env.STRIPE_STARTER_TOPUP_PRICE_ID,
     creator: process.env.STRIPE_CREATOR_TOPUP_PRICE_ID,
     influencer: process.env.STRIPE_INFLUENCER_TOPUP_PRICE_ID,
@@ -31,6 +33,7 @@ const validSubscriptionPriceIds = new Set(Object.values(priceIdMap).filter(id =>
 
 // Map subscription price IDs to the number of credits they provide
 const subscriptionCreditsMap: { [key: string]: number } = {};
+if (priceIdMap.test) subscriptionCreditsMap[priceIdMap.test] = .50;
 if (priceIdMap.starter) subscriptionCreditsMap[priceIdMap.starter] = 15;
 if (priceIdMap.creator) subscriptionCreditsMap[priceIdMap.creator] = 35;
 if (priceIdMap.influencer) subscriptionCreditsMap[priceIdMap.influencer] = 75;
