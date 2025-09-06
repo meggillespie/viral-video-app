@@ -4,7 +4,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import { supabase } from '../../utils/supabase';
 
 // --- Client Initialization ---//
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE!);
 // FIX: Ensure BACKEND_API_URL has a fallback to prevent it from being undefined.
 const BACKEND_API_URL = import.meta.env.VITE_BACKEND_API_URL || '';
 

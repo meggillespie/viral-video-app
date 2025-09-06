@@ -11,7 +11,6 @@ const clientUrl = 'https://viral-video-app-ai-plexus.vercel.app'; // Your fronte
 // ---- Price ID Maps ----
 
 // Subscription Price IDs from .env
-// FIX: Removed the 'VITE_' prefix for backend environment variables.
 const priceIdMap: { [key: string]: string | undefined } = {
     starter: process.env.STRIPE_STARTER_PRICE_ID,
     creator: process.env.STRIPE_CREATOR_PRICE_ID,
@@ -20,7 +19,6 @@ const priceIdMap: { [key: string]: string | undefined } = {
 };
 
 // Top-Up Price IDs for the "5 Credit Top-Up Package" from .env
-// FIX: Removed the 'VITE_' prefix for backend environment variables.
 const topUpPriceIdMap: { [key: string]: string | undefined } = {
     starter: process.env.STRIPE_STARTER_TOPUP_PRICE_ID,
     creator: process.env.STRIPE_CREATOR_TOPUP_PRICE_ID,
