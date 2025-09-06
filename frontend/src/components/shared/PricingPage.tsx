@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useUser } from "@clerk/clerk-react";
 import { loadStripe } from '@stripe/stripe-js';
-import { supabase } from '../../utils/supabase'; 
+import { supabase } from '../../utils/supabase';
 
 // --- Client Initialization ---//
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY!);
-const BACKEND_API_URL = import.meta.env.VITE_BACKEND_API_URL;
+// FIX: Ensure BACKEND_API_URL has a fallback to prevent it from being undefined.
+const BACKEND_API_URL = import.meta.env.VITE_BACKEND_API_URL || '';
 
 const pricingTiers = [
     { name: 'Starter', price: '$19.99', credits: '15', priceId: import.meta.env.VITE_STRIPE_STARTER_PRICE_ID },
@@ -44,13 +45,13 @@ export const PricingPage = () => {
                         .eq('id', user.id)
                         .single();
 
-                    if (profileError && profileError.code !== 'PGRST116') { 
+                    if (profileError && profileError.code !== 'PGRST116') {
                         throw profileError;
                     }
-                    
-                    setSubscription({ 
-                        status: profile?.subscription_status || null, 
-                        planId: profile?.subscription_plan_id || null 
+
+                    setSubscription({
+                        status: profile?.subscription_status || null,
+                        planId: profile?.subscription_plan_id || null
                     });
                 } catch (err: any) {
                     console.error("Error fetching subscription status:", err);
@@ -151,21 +152,21 @@ export const PricingPage = () => {
                 {error && <div className="my-6 bg-red-500/20 border border-red-500/30 text-red-300 px-4 py-3 rounded-lg text-sm"><strong>Error:</strong> {error}</div>}
                 <div className="flex flex-col sm:flex-row gap-6 justify-center">
                     <div className="bg-black/30 p-6 rounded-lg border border-white/10 flex flex-col flex-1 text-left">
-                         <h3 className="text-xl font-semibold text-white">Need More Credits?</h3>
-                         <p className="text-gray-400 mt-2">Instantly add 5 more credits to your account.</p>
-                         <div className="my-6">
+                        <h3 className="text-xl font-semibold text-white">Need More Credits?</h3>
+                        <p className="text-gray-400 mt-2">Instantly add 5 more credits to your account.</p>
+                        <div className="my-6">
                             {topUpInfo ? <p className="text-3xl font-bold text-white">{topUpInfo.price}</p> : <p className="text-sm text-gray-500">Not available</p>}
-                         </div>
-                         <button onClick={handleTopUp} disabled={!topUpInfo || loading !== null} className="mt-auto px-6 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
+                        </div>
+                        <button onClick={handleTopUp} disabled={!topUpInfo || loading !== null} className="mt-auto px-6 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
                             {loading === 'top-up' ? 'Processing...' : 'Purchase 5 Credits'}
-                         </button>
+                        </button>
                     </div>
                     <div className="bg-black/30 p-6 rounded-lg border border-white/10 flex flex-col flex-1 text-left">
-                         <h3 className="text-xl font-semibold text-white">Billing Portal</h3>
-                         <p className="text-gray-400 mt-2">Update payment method, view invoices, or cancel your subscription.</p>
-                         <button onClick={handleManageSubscription} disabled={loading !== null} className="mt-auto w-full px-6 py-2 bg-gray-600/50 text-white font-semibold rounded-lg hover:bg-gray-600/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                             {loading === 'manage' ? 'Redirecting...' : 'Manage Billing'}
-                         </button>
+                        <h3 className="text-xl font-semibold text-white">Billing Portal</h3>
+                        <p className="text-gray-400 mt-2">Update payment method, view invoices, or cancel your subscription.</p>
+                        <button onClick={handleManageSubscription} disabled={loading !== null} className="mt-auto w-full px-6 py-2 bg-gray-600/50 text-white font-semibold rounded-lg hover:bg-gray-600/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                            {loading === 'manage' ? 'Redirecting...' : 'Manage Billing'}
+                        </button>
                     </div>
                 </div>
             </div>
